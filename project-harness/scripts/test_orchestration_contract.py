@@ -1,0 +1,1743 @@
+#!/usr/bin/env python3
+"""Executable consistency checks for the Project Harness orchestration protocol."""
+
+from __future__ import annotations
+
+import re
+import unittest
+from pathlib import Path
+
+
+SKILL_ROOT = Path(__file__).resolve().parents[1]
+REFERENCES = SKILL_ROOT / "references"
+
+
+def read_text(relative_path: str) -> str:
+    return (SKILL_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def markdown_section(markdown: str, heading: str) -> str:
+    """Return one exact level-two Markdown section, including its heading."""
+    match = re.search(
+        rf"(?ms)^## {re.escape(heading)}\n.*?(?=^## |\Z)",
+        markdown,
+    )
+    if match is None:
+        raise AssertionError(f"missing Markdown section: {heading}")
+    return match.group(0)
+
+
+class ProtocolAssertions(unittest.TestCase):
+    def assertContainsAll(
+        self,
+        text: str,
+        needles: tuple[str, ...],
+        *,
+        source: str,
+    ) -> None:
+        for needle in needles:
+            with self.subTest(source=source, required=needle):
+                self.assertIn(needle, text)
+
+    def assertInOrder(
+        self,
+        text: str,
+        needles: tuple[str, ...],
+        *,
+        source: str,
+    ) -> None:
+        cursor = -1
+        for needle in needles:
+            position = text.find(needle, cursor + 1)
+            with self.subTest(source=source, ordered=needle):
+                self.assertGreater(
+                    position,
+                    cursor,
+                    f"{needle!r} is missing or out of order in {source}",
+                )
+            cursor = position
+
+
+class OrchestrationContractTests(ProtocolAssertions):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.skill = read_text("SKILL.md")
+        cls.delivery = read_text("references/delivery.md")
+        cls.implementation = read_text("references/implementation.md")
+        cls.closeout = read_text("references/closeout.md")
+        cls.promotion = read_text("references/context-promotion.md")
+        cls.evidence = read_text("references/delivery-evidence-contract.md")
+        cls.delivery_log = read_text("references/delivery-log-contract.md")
+        cls.issue_transport = read_text("references/issue-transport.md")
+        cls.pr_transport = read_text("references/pull-request-transport.md")
+        cls.openai = read_text("agents/openai.yaml")
+
+    def test_delivery_is_the_normal_exact_entry_and_phase_roles_remain(self) -> None:
+        invocation = markdown_section(self.skill, "Require an exact invocation")
+        dispatch = markdown_section(self.skill, "Load one top-level operation")
+
+        self.assertContainsAll(
+            invocation,
+            (
+                "role: delivery",
+                "role: definition | context-authoring | implementation | closeout | context-promotion",
+                "normal automated delivery tail",
+                "single compatibility or recovery phase",
+            ),
+            source="SKILL.md invocation contract",
+        )
+
+        expected_rows = {
+            "init": "references/init.md",
+            "definition": "references/definition.md",
+            "context-authoring": "references/context-authoring.md",
+            "delivery": "references/delivery.md",
+            "implementation": "references/implementation.md",
+            "closeout": "references/closeout.md",
+            "context-promotion": "references/context-promotion.md",
+        }
+        actual_rows = dict(
+            re.findall(r"(?m)^\| `([^`]+)` \| `([^`]+\.md)` \|", dispatch)
+        )
+        self.assertEqual(actual_rows, expected_rows)
+        for reference in actual_rows.values():
+            with self.subTest(reference=reference):
+                self.assertTrue((SKILL_ROOT / reference).is_file())
+
+        self.assertContainsAll(
+            self.openai,
+            (
+                "In Plan mode",
+                "role: delivery",
+                "Implementation, Closeout, Context Promotion",
+                "request_user_input confirmation",
+                "persistent stage timing/change observations",
+                "and Issue closure",
+                "compatibility or recovery",
+                "allow_implicit_invocation: false",
+            ),
+            source="agents/openai.yaml",
+        )
+        self.assertNotIn("run one feature-iteration phase", self.openai)
+        self.assertIn("disable-model-invocation: true", self.skill)
+
+    def test_delivery_evidence_has_one_authority_and_is_routed_by_role(self) -> None:
+        dispatch = markdown_section(self.skill, "Load one top-level operation")
+        boundary = markdown_section(self.delivery, "Enforce the coordinator boundary")
+
+        self.assertContainsAll(
+            dispatch,
+            (
+                "**Delivery evidence contract:** `references/delivery-evidence-contract.md`",
+                "`delivery` | `references/delivery.md` | Issue transport; Pull Request transport; Delivery evidence contract; Delivery stage log contract",
+                "`implementation` | `references/implementation.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract",
+                "`closeout` | `references/closeout.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract",
+                "`context-promotion` | `references/context-promotion.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract",
+                "The evidence contract lets it validate persistent artifact schemas and predecessor bindings only",
+                "grants no phase behavior authority",
+            ),
+            source="shared evidence routing",
+        )
+        implementation_row = re.search(
+            r"(?m)^\| `implementation` \|.*$",
+            dispatch,
+        )
+        self.assertIsNotNone(implementation_row)
+        assert implementation_row is not None
+        self.assertNotIn("Delivery evidence contract", implementation_row.group(0))
+        self.assertContainsAll(
+            boundary,
+            (
+                "`references/delivery-evidence-contract.md`",
+                "Use that contract only for persistent schema, tuple/digest, predecessor, active-tip, and legacy dual-read checks",
+                "never use it to perform phase reasoning or produce a phase artifact",
+            ),
+            source="coordinator evidence boundary",
+        )
+
+        signatures = (
+            "verdict: PASS | FAIL | BLOCKED",
+            "callback: product-acceptance-pass",
+            "artifact_kind: context-promotion-proposal",
+            "review_kind: context-promotion-no-write",
+            "review_kind: context-promotion-write",
+            "outcome: awaiting-confirmation",
+            "outcome: confirmed",
+            "outcome: no-promotion",
+            "outcome: memory-pr-ready",
+            "outcome: memory-pr-merged",
+        )
+        documents = {
+            path.relative_to(SKILL_ROOT).as_posix(): path.read_text(encoding="utf-8")
+            for path in REFERENCES.glob("*.md")
+        }
+        documents["SKILL.md"] = self.skill
+        for signature in signatures:
+            with self.subTest(signature=signature):
+                sources = [
+                    path
+                    for path, body in documents.items()
+                    if re.search(rf"(?m)^{re.escape(signature)}$", body)
+                ]
+                self.assertEqual(
+                    sources,
+                    ["references/delivery-evidence-contract.md"],
+                )
+
+    def test_delivery_evidence_fixtures_have_unique_top_level_keys(self) -> None:
+        blocks = re.findall(
+            r"(?ms)^~~~(?:yaml|text)\n(.*?)\n~~~$",
+            self.evidence,
+        )
+        self.assertGreaterEqual(len(blocks), 12)
+        for index, block in enumerate(blocks):
+            keys = re.findall(r"(?m)^([A-Za-z_][A-Za-z0-9_-]*):", block)
+            with self.subTest(block=index):
+                self.assertEqual(
+                    len(keys),
+                    len(set(keys)),
+                    f"duplicate top-level key in evidence block {index}: {keys}",
+                )
+
+    def test_delivery_log_has_one_schema_and_fixed_boundaries(self) -> None:
+        schema_sources = [
+            path.relative_to(SKILL_ROOT).as_posix()
+            for path in REFERENCES.glob("*.md")
+            if re.search(
+                r"(?m)^record_kind: delivery-stage-observation$",
+                path.read_text(encoding="utf-8"),
+            )
+        ]
+        self.assertEqual(schema_sources, ["references/delivery-log-contract.md"])
+
+        fixed = markdown_section(self.delivery_log, "Use fixed stages and success boundaries")
+        rows = re.findall(
+            r"(?m)^\| `([^`]+)` \| `([^`]+)` \| (.*?) \|",
+            fixed,
+        )
+        self.assertEqual(
+            rows,
+            [
+                (
+                    "implementation-verified-draft",
+                    "implementation",
+                    "`verified-draft-pr`",
+                ),
+                (
+                    "closeout-accepted-ready",
+                    "closeout",
+                    "`accepted-ready-pr`",
+                ),
+                ("product-merged", "product-integration", "`verified` or `no-op`"),
+                (
+                    "context-proposal-reviewed",
+                    "context-promotion",
+                    "`awaiting-confirmation`",
+                ),
+                ("context-confirmed", "context-confirmation", "`confirmed`"),
+                (
+                    "context-no-promotion-terminal",
+                    "context-promotion",
+                    "`no-promotion`",
+                ),
+                (
+                    "memory-pr-ready",
+                    "context-promotion",
+                    "`verified-memory-pr` or `memory-pr-ready`",
+                ),
+                ("memory-pr-merged", "memory-integration", "`verified` or `no-op`"),
+                (
+                    "context-memory-terminal",
+                    "context-promotion",
+                    "`memory-pr-merged`",
+                ),
+                ("finalization-ready", "finalization", "`ready-to-close`"),
+                ("issue-closed", "finalization", "`verified` or `no-op`"),
+            ],
+        )
+
+        schema = markdown_section(self.delivery_log, "Write one exact schema")
+        self.assertContainsAll(
+            schema,
+            (
+                "log_schema_version: 1",
+                "observation_kind: boundary | attempt",
+                "transition_key: SHA256",
+                "attempt_id:",
+                "elapsed_ms: 60000 | null",
+                "timing_quality: measured | reconstructed | unknown",
+                "change_quality:",
+                "repository: measured | reconstructed | unknown | not-applicable",
+                "repository_changes: []",
+                "github_mutations: []",
+                "context_changes: []",
+                "raw_user_input_persisted: false",
+            ),
+            source="Delivery observation schema",
+        )
+
+    def test_delivery_logs_are_coordinator_owned_audit_only_comments(self) -> None:
+        dispatch = markdown_section(self.skill, "Load one top-level operation")
+        delegation = markdown_section(self.skill, "Delegate without expanding authority")
+        markers = markdown_section(self.skill, "Preserve persistent markers")
+        observational = markdown_section(self.delivery_log, "Keep logs observational")
+
+        self.assertContainsAll(
+            dispatch,
+            (
+                "**Delivery stage log contract:** `references/delivery-log-contract.md`",
+                "`delivery` | `references/delivery.md` | Issue transport; Pull Request transport; Delivery evidence contract; Delivery stage log contract",
+            ),
+            source="Delivery log routing",
+        )
+        self.assertContainsAll(
+            delegation,
+            (
+                "coordinator alone receives",
+                "Issue `add-comment` for exact Delivery stage observations",
+                "Never place merge, closure, or Delivery-log authority in a phase envelope",
+            ),
+            source="Delivery log mutation ownership",
+        )
+        self.assertContainsAll(
+            observational,
+            (
+                "top-level source Issue comment",
+                "Do not add a `${marker_namespace}` marker",
+                "Forbid phase Agents, sub-agents, sub-subagents, and Reviewers",
+                "Never let an observation authorize phase dispatch, PASS, Context Promotion confirmation, PR merge, Issue closure, or a durable-memory update",
+                "audit/compliance defect only",
+            ),
+            source="Delivery log authority boundary",
+        )
+        self.assertIn("Keep the three marker names above unchanged", markers)
+        self.assertIn("not a recovery authority", self.delivery)
+        self.assertIn("stage observation", self.issue_transport)
+        self.assertIn(
+            "standalone `context-promotion` follows its compatibility closure gate without Delivery observations",
+            self.skill,
+        )
+
+    def test_delivery_log_identity_snapshots_and_manifest_are_canonical(self) -> None:
+        identity = markdown_section(
+            self.delivery_log,
+            "Calculate a deterministic transition key",
+        )
+        snapshots = markdown_section(
+            self.delivery_log,
+            "Canonicalize snapshots and evidence",
+        )
+        coverage = markdown_section(
+            self.delivery_log,
+            "Require three coverage levels",
+        )
+
+        identity_json = re.search(
+            r"~~~json\n(.*?)\n~~~",
+            identity,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(identity_json)
+        assert identity_json is not None
+        self.assertNotIn('"activity"', identity_json.group(1))
+        self.assertNotIn('"outcome"', identity_json.group(1))
+        self.assertContainsAll(
+            identity,
+            (
+                "Exclude activity, top-level outcome, attempt ID",
+                "Use `attempt_id`, not `transition_key`, to distinguish separate live executions",
+            ),
+            source="Delivery transition identity",
+        )
+        self.assertContainsAll(
+            snapshots,
+            (
+                "| `implementation-verified-draft` |",
+                "| `closeout-accepted-ready` |",
+                "| `product-merged` |",
+                "| `context-proposal-reviewed` |",
+                "| `context-confirmed` |",
+                "| `context-no-promotion-terminal` |",
+                "| `memory-pr-ready` |",
+                "| `memory-pr-merged` |",
+                "| `context-memory-terminal` |",
+                "| `finalization-ready` |",
+                "| `issue-closed` |",
+                "target_boundary: null",
+                "source_bindings: []",
+                "response_kind: null",
+                "modification_item_count: null",
+                "Reuse the same `attempt_id`",
+                "Group aggregate attempt/timing statistics by `attempt_id`",
+            ),
+            source="Delivery canonical snapshots",
+        )
+        self.assertContainsAll(
+            coverage,
+            (
+                "manifest_schema_version: 1",
+                "path_kind: no-write | memory-write",
+                "entries:",
+                "observation_url: URL",
+                "observation_sha256: SHA256",
+                "transition_key: SHA256",
+                "sorted keys, compact separators, and no ASCII escaping",
+                "`manifest` level is 6/8",
+                "`closure` level is 7/9",
+                "`completion` level is 8/10",
+                "does not build a self-referential completion manifest",
+            ),
+            source="Delivery canonical coverage manifest",
+        )
+
+    def test_delivery_log_timing_changes_privacy_and_recovery_are_explicit(self) -> None:
+        timing = markdown_section(self.delivery_log, "Measure time honestly")
+        changes = markdown_section(
+            self.delivery_log,
+            "Summarize modifications without copying them",
+        )
+        privacy = markdown_section(
+            self.delivery_log,
+            "Protect user and environment data",
+        )
+        recovery = markdown_section(
+            self.delivery_log,
+            "Deduplicate and backfill safely",
+        )
+
+        self.assertContainsAll(
+            timing,
+            (
+                "inclusive wall duration",
+                "Use a monotonic clock",
+                "ending in `Z`",
+                "timing_quality: measured",
+                "stage `context-confirmation` with activity `confirm`",
+                "Never duplicate one measured span",
+                "timing_quality: reconstructed",
+                "Use `unknown` only when neither exact timestamp can be established",
+                "Never fabricate historical duration",
+            ),
+            source="Delivery log timing",
+        )
+        self.assertContainsAll(
+            changes,
+            (
+                "status: added | modified | removed | renamed",
+                "operation: create-draft | replace-content | add-comment | mark-ready | convert-to-draft | merge | change-metadata",
+                "action: add | update | supersede | no_write",
+                "Limit the combined preview lists to 100 entries",
+                "final net PR diffs",
+                "change_quality",
+                "Delivery observation `add-comment` mutations are intentionally excluded",
+            ),
+            source="Delivery log changes",
+        )
+        self.assertContainsAll(
+            privacy,
+            (
+                "raw `request_user_input` modification text or its digest",
+                "absolute local paths",
+                "record only `approved`, `revision-requested`, `paused`, or `blocked`",
+                "modification item count",
+                "best-effort and never part of boundary coverage",
+                "always `no_write` during Context Promotion classification",
+            ),
+            source="Delivery log privacy",
+        )
+        self.assertContainsAll(
+            recovery,
+            (
+                "comments completely, including pagination",
+                "Return `no-op` only when an existing whole comment exactly matches",
+                "harmless audit duplicates",
+                "reconstructed observation with null elapsed time",
+                "Never repeat a merge, confirmation, or closure mutation",
+                "never reopen it to repair logging",
+            ),
+            source="Delivery log recovery",
+        )
+
+    def test_delivery_log_coverage_precedes_issue_close_and_is_reported(self) -> None:
+        persistence = markdown_section(
+            self.delivery,
+            "Persist Delivery stage observations",
+        )
+        closure = markdown_section(self.delivery, "Close the source Issue")
+        result = markdown_section(self.delivery, "Return the delivery result")
+        compatibility = markdown_section(self.delivery_log, "Preserve compatibility")
+
+        self.assertContainsAll(
+            persistence,
+            (
+                "For every bounded phase Agent attempt, merge gate, confirmation round, reconciliation, and finalization gate",
+                "scripts/delivery_log.py",
+                "comments_complete: true",
+                "coordinator's verified mutation-author identity",
+                "duplicate observations share one transition key",
+                "timing_quality: reconstructed",
+                "UUIDv4 `attempt_id`",
+            ),
+            source="Delivery observation persistence",
+        )
+        self.assertInOrder(
+            closure,
+            (
+                "every required success boundary",
+                "Build the exact 6/8-boundary stage coverage manifest",
+                "`finalization-ready` boundary observation",
+                "explicit `change-metadata` mutation",
+                "Independently read the Issue back",
+                "`issue-closed` boundary observation",
+                'coverage(..., level="completion")',
+            ),
+            source="Delivery log closure order",
+        )
+        self.assertContainsAll(
+            closure,
+            (
+                "still-closed Issue",
+                "closed-but-log-pending",
+                "never reopen or repeat the close mutation",
+                "require it to remain `closed`/`completed`",
+                "`locked: false`",
+                "never unlock an Issue",
+            ),
+            source="post-close observation recovery",
+        )
+        self.assertContainsAll(
+            result,
+            (
+                "stage_logs:",
+                "attempt_observations_by_stage: {}",
+                "measured_elapsed_ms_by_stage: {}",
+                "measured_elapsed_ms_total: 0",
+                "unknown_timing_count: 0",
+                "user_wait_ms_total: 0",
+                "change_items_by_stage: {}",
+                "unknown_change_domains_by_stage: {}",
+                "final_product_net:",
+                "final_memory_net:",
+                "issue_closed_observation_url:",
+                "coverage_manifest_sha256:",
+                "coverage_level: null | manifest | closure | completion",
+                "complete paginated reads",
+            ),
+            source="Delivery log aggregate result",
+        )
+        self.assertContainsAll(
+            compatibility,
+            (
+                "additive schema version 1",
+                "Existing open lineages",
+                "unknown timing",
+                "Exact standalone or legacy lineages already closed in the first immutable read",
+                "completed compatibility no-ops without backfill",
+            ),
+            source="Delivery log additive migration",
+        )
+
+    def test_issue_transport_and_context_promotion_keep_logs_non_authoritative(
+        self,
+    ) -> None:
+        authority = markdown_section(
+            self.issue_transport,
+            "Require explicit write authority",
+        )
+        transport_result = markdown_section(
+            self.issue_transport,
+            "Return the shared result envelope",
+        )
+
+        self.assertContainsAll(
+            self.issue_transport,
+            (
+                "complete paginated comment enumeration",
+                "source-Issue Delivery observation comments",
+            ),
+            source="Issue observation transport",
+        )
+        self.assertContainsAll(
+            authority,
+            (
+                "current `delivery` coordinator",
+                "Never accept such a payload from a phase Agent, descendant, standalone compatibility role",
+                "does not decide whether a stage completed or whether log coverage is sufficient",
+                "stage observation",
+                "still-closed Issue",
+                "never reopen it",
+                "`closed`/`completed` after comment read-back",
+            ),
+            source="Issue observation authority",
+        )
+        self.assertContainsAll(
+            transport_result,
+            (
+                "comments_complete: null",
+                "comments_next_cursor: null",
+                "locked: false",
+                "Set `comments_complete: true` only after every requested page is fetched",
+            ),
+            source="Issue observation pagination result",
+        )
+        self.assertContainsAll(
+            self.promotion,
+            (
+                "record_kind: delivery-stage-observation",
+                "audit-only single-task chronology",
+                "Classify Delivery stage observations as `no_write`",
+                "Never write raw structured-input text, its digest",
+                "do not read, write, or judge Delivery observation coverage",
+            ),
+            source="Context Promotion log exclusion",
+        )
+
+    def test_coordinator_consumes_persistent_handoffs_with_fresh_agents(self) -> None:
+        boundary = markdown_section(self.delivery, "Enforce the coordinator boundary")
+        recovery = markdown_section(self.delivery, "Reconstruct the persistent state")
+        dispatch = markdown_section(self.delivery, "Dispatch bounded phase Agents")
+
+        self.assertContainsAll(
+            boundary,
+            (
+                "one Delivery Coordinator",
+                "fresh phase Agent for every Implementation attempt, Closeout round, Context Promotion proposal revision, and terminal reconciliation",
+                "sub-agents or sub-subagents",
+                "independently re-reading every referenced Issue, PR, comment, ref, digest, and state",
+                "Never ask the user to create a new session for a normal transition",
+                "coordinator consumes the persistent hand-off",
+                "two permitted merge gates only in the coordinator",
+                "Never request user input outside the Context Promotion confirmation gate",
+            ),
+            source="delivery coordinator boundary",
+        )
+        self.assertContainsAll(
+            recovery,
+            (
+                "Reconstruct the next state from authoritative artifacts",
+                "Every transition must already be reconstructible from GitHub",
+                "Implementation persists commits, the Draft product PR",
+                "Closeout persists an append-only verdict",
+                "Product integration persists the PR merge state and merge commit identity",
+                "Context Promotion persists proposal, confirmation, Ready/terminal callbacks",
+                "Do not add another run marker or local coordinator checkpoint",
+            ),
+            source="delivery recovery contract",
+        )
+        self.assertContainsAll(
+            dispatch,
+            (
+                "| `implementation` |",
+                "| `closeout` |",
+                "| `context-promotion` |",
+                "persistent evidence URLs",
+                "Permitted responsibility",
+                "Forbid a phase Agent from loading `references/delivery.md` or another phase reference",
+            ),
+            source="delivery phase dispatch",
+        )
+
+        legacy_session_phrases = (
+            "new clean `project-harness` session",
+            "Use a clean session for every role",
+            "require a repeated `context-promotion` invocation",
+        )
+        combined = "\n".join(
+            (self.skill, self.delivery, self.implementation, self.closeout, self.promotion)
+        )
+        for phrase in legacy_session_phrases:
+            with self.subTest(legacy_session_phrase=phrase):
+                self.assertNotIn(phrase, combined)
+
+    def test_nested_delegation_is_allowed_without_expanding_authority(self) -> None:
+        delegation = markdown_section(self.skill, "Delegate without expanding authority")
+        self.assertContainsAll(
+            delegation,
+            (
+                "parent_role: delivery",
+                "delegated_role: implementation | closeout | context-promotion",
+                "bound_snapshot:",
+                "persistent_evidence_urls: []",
+                "allowed_mutations:",
+                "repository: []",
+                "issue_transport: []",
+                "pull_request_transport: []",
+                "host parent-child provenance",
+                "sub-agents, including sub-subagents",
+                "narrow authority",
+                "set write ownership",
+                "integrate results",
+                "remain accountable for its phase",
+                "Forbid every descendant from merging a PR, closing the source Issue, approving a Context Promotion proposal for the user",
+            ),
+            source="root delegation envelope",
+        )
+
+        self.assertContainsAll(
+            self.implementation,
+            (
+                "host-provenance-bound delegation",
+                "sub-agents or sub-subagents",
+                "Narrow every nested delegation",
+                "Only the Primary Implementation Agent may return the verified phase hand-off",
+            ),
+            source="Implementation delegation",
+        )
+        self.assertContainsAll(
+            self.closeout,
+            (
+                "host-provenance-bound delegation",
+                "sub-agents or sub-subagents",
+                "Keep the Closeout Agent accountable",
+                "no descendant may edit code, write the verdict, merge, close the Issue, or approve promotion",
+            ),
+            source="Closeout delegation",
+        )
+        self.assertContainsAll(
+            self.promotion,
+            (
+                "host-provenance-bound delegation",
+                "the coordinator retains both PR merge operations and final Issue closure",
+                "never merge a PR, and never approve a proposal on the user's behalf",
+            ),
+            source="Context Promotion delegation",
+        )
+
+    def test_delegated_write_authority_is_consistent_across_transports(self) -> None:
+        self.assertContainsAll(
+            self.issue_transport,
+            (
+                "current explicit `delivery` invocation",
+                "host-provenance-bound delegation",
+                "mutation whitelist includes it",
+                "current `delivery` coordinator",
+                "current explicit standalone `role: context-promotion`",
+                "Never accept final closure from a phase Agent delegated by `delivery`",
+                "serialized delegation envelope",
+                "prior hand-off",
+            ),
+            source="Issue transport authority",
+        )
+        self.assertContainsAll(
+            self.pr_transport,
+            (
+                "current explicit `delivery` invocation",
+                "host-provenance-bound delegation",
+                "mutation whitelist includes it",
+                "Allow `merge` only to the current `delivery` coordinator",
+                "never accept it from a phase Agent or descendant",
+                "serialized delegation envelope",
+                "prior hand-off",
+            ),
+            source="Pull Request transport authority",
+        )
+
+        for name, phase in (
+            ("Implementation", self.implementation),
+            ("Closeout", self.closeout),
+            ("Context Promotion", self.promotion),
+        ):
+            with self.subTest(phase=name):
+                self.assertIn("current explicit `delivery` invocation", phase)
+                self.assertIn("delegation", phase)
+
+    def test_delivery_has_two_exact_guarded_merge_gates(self) -> None:
+        merge_headings = re.findall(r"(?m)^## (Merge .+)$", self.delivery)
+        self.assertEqual(
+            merge_headings,
+            ["Merge the accepted product PR", "Merge approved project memory"],
+        )
+
+        product_merge = markdown_section(self.delivery, "Merge the accepted product PR")
+        memory_merge = markdown_section(self.delivery, "Merge approved project memory")
+        for name, section in (
+            ("product merge gate", product_merge),
+            ("project-memory merge gate", memory_merge),
+        ):
+            self.assertContainsAll(
+                section,
+                (
+                    "merge method",
+                    "loaded Pull Request transport",
+                    "`merge` operation",
+                    "Independently",
+                    "`develop`",
+                    "merge commit identity",
+                ),
+                source=name,
+            )
+
+        merge_guard = markdown_section(self.pr_transport, "Guard an exact merge")
+        self.assertContainsAll(
+            self.pr_transport,
+            (
+                "| merge | Merge one exact open Ready PR only for the current `delivery` coordinator.",
+                "operation: search | read | create-draft | replace-content | add-comment | replace-comment | read-checks | mark-ready | convert-to-draft | merge",
+                "merge_commit_sha: null",
+                "merge_method: null",
+            ),
+            source="Pull Request merge surface",
+        )
+        self.assertContainsAll(
+            merge_guard,
+            (
+                "role: delivery",
+                "base ref `develop`",
+                "required_checks_known: true",
+                "`mergeable: true`",
+                "persistent gate evidence URL/digest pairs",
+                "Closeout PASS",
+                "proposal artifact, confirmation, Reviewer PASS, and memory-pr-ready callback",
+                "Compare every expected field, protected field, evidence URL/digest",
+                "already merged",
+                "Return `no-op` only for an exact match",
+                "Do not retry a timeout or missing response",
+                "Recover an ambiguous response only by independently fetching the exact PR",
+                "merged: true",
+                "non-null merge commit identity",
+            ),
+            source="exact merge guard",
+        )
+        self.assertIn("Closeout never merges", self.closeout)
+        self.assertIn("Do not merge the project-memory PR", self.promotion)
+
+    def test_context_promotion_is_the_only_structured_user_gate(self) -> None:
+        invocation = markdown_section(self.skill, "Require an exact invocation")
+        delivery_input = markdown_section(self.delivery, "Accept the delivery input")
+        relay = markdown_section(
+            self.delivery,
+            "Relay the Context Promotion confirmation",
+        )
+        self.assertContainsAll(
+            invocation,
+            (
+                "Before any `delivery` mutation",
+                "all paginated source Issue comments",
+                "`comments_complete: true`",
+                "first-read-closed standalone/legacy compatibility no-op",
+                "without Delivery-log backfill, an unlocked Issue, `add-comment`, or structured input",
+                "`locked: false`",
+                "authenticated Issue `add-comment` capability",
+                "human-only acceptance item",
+                "persistent confirmation URL/whole-comment digest",
+                "Fresh delivery must pass it before Implementation",
+                "recovery after verified confirmation/terminal does not require it",
+                "`recovery_condition: unsupported-delivery-input`",
+                "Context Promotion proposal remains `delivery`'s only live user interaction",
+            ),
+            source="root delivery preflight",
+        )
+        self.assertContainsAll(
+            delivery_input,
+            (
+                "Before the first mutation",
+                "complete source Issue and every paginated top-level comment",
+                "`comments_complete: true`",
+                "first-read-closed standalone/legacy compatibility no-op",
+                "does not require an unlocked Issue, `add-comment`, or structured-input capability",
+                "remaining path that may mutate or backfill",
+                "`locked: false`",
+                "`add-comment` capability",
+                "persistent explicit confirmation URL and whole-comment digest bound to the exact current acceptance snapshot",
+                "If no product snapshot exists yet",
+                "A fresh delivery must pass this check before its first Implementation mutation",
+                "recovery after an already verified confirmation or terminal does not require the tool",
+                "`recovery_condition: unsupported-delivery-input`",
+                "only live user interaction in `delivery` remains the Context Promotion confirmation gate",
+            ),
+            source="delivery unsupported-input preflight",
+        )
+        self.assertInOrder(
+            relay,
+            (
+                "Present the user with all proposal details",
+                "every candidate conclusion",
+                "classification and exact authority-layer destination path",
+                "exact proposed context change or category-specific no-write reason",
+                "`explicit-user-decision`",
+                "exact authority effect",
+                "source evidence",
+                "project-memory PR URL",
+                "use `request_user_input` on Codex or the host's equivalent structured input tool",
+                "Approve exact proposal",
+                "Pause without integration",
+                "free-text alternative for exact modification items",
+                "Handle the response",
+            ),
+            source="Context Promotion confirmation relay",
+        )
+        self.assertContainsAll(
+            relay,
+            (
+                "Do not set an automatic resolution or default",
+                "Do not use an ordinary chat question as a fallback",
+                "eligibility registration URL/digest",
+                "every artifact evidence/current-authority source",
+                "On modification items",
+                "new `awaiting-confirmation` callback",
+                "Present the new revision and ask again",
+                "only interactive gate in `delivery`",
+            ),
+            source="Context Promotion confirmation behavior",
+        )
+
+        confirmation = markdown_section(
+            self.promotion,
+            "Persist and relay the confirmation gate",
+        )
+        self.assertContainsAll(
+            confirmation,
+            (
+                "request_user_input",
+                "On Codex, this requires Plan mode",
+                "equivalent structured choice-and-free-text input",
+                "return blocked with the proposal persisted",
+                "never downgrade to an ordinary chat question or infer approval",
+                "Bind approval only to the displayed proposal comment URL/digest",
+            ),
+            source="Context Promotion phase confirmation",
+        )
+        self.assertIn("Closeout must not call `request_user_input`", self.delivery)
+        self.assertIn("Never call `request_user_input` in Closeout", self.closeout)
+        self.assertIn(
+            "Do not request user input during Implementation or Closeout",
+            self.skill,
+        )
+        self.assertContainsAll(
+            self.skill,
+            (
+                "A fresh or pre-confirmation `delivery` path must preflight this capability before its first mutation",
+                "already verified confirmation/terminal recovery and the exact read-only compatibility no-op do not require it",
+            ),
+            source="state-aware structured-input preflight",
+        )
+
+    def test_confirmation_state_chain_and_legacy_dual_read_are_explicit(self) -> None:
+        markers = markdown_section(self.skill, "Preserve persistent markers")
+        marker_rows = re.findall(
+            r"(?m)^\| `\$\{marker_namespace\}:([^`]+)` \|", markers
+        )
+        self.assertEqual(
+            marker_rows,
+            [
+                "context-authoring",
+                "context-promotion-eligible",
+                "context-promotion",
+            ],
+        )
+        self.assertContainsAll(
+            markers,
+            (
+                "`references/delivery-evidence-contract.md`",
+                "only to validate independently re-read evidence",
+                "one active source-tuple-bound lineage",
+                "strict dual-read and additive migration paths",
+                "malformed current-schema artifacts are never legacy",
+                "does not redefine the contract's outcome enums, predecessor fields, or active-tip algorithm",
+            ),
+            source="root marker and dual-read contract",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "outcome: awaiting-confirmation",
+                "outcome: confirmed",
+                "outcome: no-promotion",
+                "outcome: memory-pr-ready",
+                "outcome: memory-pr-merged",
+                "preceding whole comment",
+                "completed compatibility no-op",
+                "structured confirmation before any new merge or close",
+            ),
+            source="shared marker and dual-read contract",
+        )
+
+        state_chain = markdown_section(
+            self.promotion,
+            "Verify the source and promotion state chain",
+        )
+        self.assertContainsAll(
+            state_chain,
+            (
+                "`references/delivery-evidence-contract.md`",
+                "Validate the current source against that shared contract",
+                "Apply only the normal, repair, and legacy migration chains",
+                "older confirmation or Ready branch explicitly invalidated",
+                "cannot authorize merge or closure",
+                "fresh Closeout round",
+                "malformed schema-v2 callback is never legacy",
+            ),
+            source="Context Promotion shared evidence use",
+        )
+        promotion_lineage = markdown_section(
+            self.evidence,
+            "Validate active lineages",
+        )
+        legacy = markdown_section(
+            self.evidence,
+            "Dual-read legacy promotion callbacks",
+        )
+        self.assertContainsAll(
+            promotion_lineage,
+            (
+                "`awaiting-confirmation` → `confirmed` → `no-promotion`",
+                "`awaiting-confirmation` → `confirmed` → `memory-pr-ready` → `memory-pr-merged`",
+                "recoverable nonterminal states",
+                "Only `no-promotion` and `memory-pr-merged` are current-format terminal states",
+            ),
+            source="shared promotion lineage",
+        )
+        self.assertContainsAll(
+            legacy,
+            (
+                "Dual-read an unversioned legacy",
+                "`no-promotion`, `memory-pr-ready`, or `memory-pr-merged`",
+                "malformed schema v2, never as legacy",
+                "legacy terminal with an already closed Issue is a completed compatibility no-op",
+                "unmerged legacy `memory-pr-ready`",
+                "`migration: confirmed-legacy-ready`",
+            ),
+            source="shared legacy dual-read",
+        )
+
+    def test_phase_results_are_snapshot_bound_and_coordinator_addressed(self) -> None:
+        implementation_result = markdown_section(
+            self.implementation,
+            "Return a persistent phase result",
+        )
+        closeout_result = markdown_section(self.closeout, "Return a closed result")
+        promotion_result = markdown_section(
+            self.promotion,
+            "Return a persistent phase result",
+        )
+
+        self.assertContainsAll(
+            implementation_result,
+            (
+                "issue_body_sha256:",
+                "head_sha:",
+                "pr_url:",
+                "pr_body_sha256:",
+                "base_ref:",
+                "base_sha:",
+                "recipient: delivery-coordinator | user",
+                "evidence_urls: []",
+                "For delegated verified-draft-pr",
+                "The coordinator must re-read them",
+            ),
+            source="Implementation result",
+        )
+        self.assertContainsAll(
+            closeout_result,
+            (
+                "issue_body_sha256:",
+                "pr_body_sha256:",
+                "head_sha:",
+                "base_ref:",
+                "base_sha:",
+                "acceptance_comment_url:",
+                "issue_callback_url:",
+                "promotion_registration_url:",
+                "recipient: delivery-coordinator | user",
+                "For delegated accepted-ready-pr",
+                "The coordinator must re-read all of them",
+            ),
+            source="Closeout result",
+        )
+        self.assertContainsAll(
+            promotion_result,
+            (
+                "source_pr_body_sha256:",
+                "source_head_sha:",
+                "source_merge_commit_sha:",
+                "eligibility_registration_sha256:",
+                "authority_base_sha:",
+                "proposal_comment_url:",
+                "proposal_comment_sha256:",
+                "confirmation_comment_url:",
+                "confirmation_comment_sha256:",
+                "source_callback_url:",
+                "memory_pr_body_sha256:",
+                "memory_merge_commit_sha:",
+                "issue_closure: null | pending-memory-pr-merge | closed",
+                "issue_state_reason: null | completed",
+                "recipient: delivery-coordinator | user",
+                "only the coordinator may close",
+            ),
+            source="Context Promotion result",
+        )
+
+    def test_closeout_and_merge_prerequisites_are_fail_closed(self) -> None:
+        verification = markdown_section(self.closeout, "Verify independently")
+        success = markdown_section(self.closeout, "Complete successful acceptance")
+        closeout_evidence = markdown_section(
+            self.evidence,
+            "Persist Closeout evidence",
+        )
+        recovery = markdown_section(self.delivery, "Reconstruct the persistent state")
+
+        self.assertContainsAll(
+            verification,
+            (
+                "Require `required_checks_known: true`",
+                "cannot substitute for this machine-verifiable merge prerequisite",
+                "remain BLOCKED while the transport reports false",
+                "Never call `request_user_input` in Closeout",
+            ),
+            source="Closeout required-check gate",
+        )
+        self.assertContainsAll(
+            success,
+            (
+                "verified PASS comment whose payload has `required_checks_known: true`",
+                "exact **Product acceptance Issue callback**",
+                "exact **Current eligibility registration**",
+                "bind its URL and digest",
+                "complete the remaining steps idempotently",
+            ),
+            source="Closeout success evidence",
+        )
+        self.assertContainsAll(
+            closeout_evidence,
+            (
+                "verdict: PASS | FAIL | BLOCKED",
+                "pr_title: TITLE",
+                "head_sha: COMMIT",
+                "callback: product-acceptance-pass",
+                "acceptance_comment_sha256: SHA256",
+                "schema_version: 2",
+                "issue_callback_sha256: SHA256",
+            ),
+            source="shared Closeout evidence schemas",
+        )
+        self.assertContainsAll(
+            recovery,
+            (
+                "required-check knowledge or mergeability is unknown",
+                "required checks fail because of the product change",
+                "mergeability is false because of a repairable promotion-scope conflict",
+                "return to structured confirmation",
+                "Exact unmerged legacy `memory-pr-ready`",
+            ),
+            source="delivery fail-closed recovery",
+        )
+
+    def test_promotion_evidence_and_repair_revisions_require_reconfirmation(self) -> None:
+        lineage = markdown_section(self.evidence, "Validate active lineages")
+        repair = markdown_section(
+            self.promotion,
+            "Apply modification requests and promotion-scope repairs",
+        )
+        confirmation = markdown_section(
+            self.promotion,
+            "Persist and relay the confirmation gate",
+        )
+        ready = markdown_section(
+            self.promotion,
+            "Mark a confirmed project-memory PR Ready",
+        )
+
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "revision_reason: initial | user-modification | promotion-scope-repair",
+                "A repair from a confirmed tip populates `invalidates_confirmation_*`",
+                "also populates `invalidates_ready_*`",
+                "`migration: confirmed-legacy-ready`",
+            ),
+            source="shared promotion revision evidence",
+        )
+        self.assertContainsAll(
+            lineage,
+            (
+                "promotion-scope repair from an active `confirmed` or `memory-pr-ready` tip",
+                "invalidated older branch cannot authorize merge or closure",
+                "sole reachable, non-superseded end",
+            ),
+            source="shared promotion active lineage",
+        )
+        self.assertContainsAll(
+            repair,
+            (
+                "repairable required-check, title/Body/head/base-tuple, advanced-base, or mergeability defect",
+                "repairable authority/current-source drift",
+                "convert-to-draft",
+                "confirmed no-write authority/source repair has no PR to convert",
+                "new artifact, review, state digest, and approval",
+                "Never loop a check failure",
+            ),
+            source="promotion repair loop",
+        )
+        self.assertContainsAll(
+            confirmation,
+            (
+                "exact **Awaiting-confirmation callback**",
+                "exact **Confirmed callback**",
+                "every evidence/current-authority source",
+                "compare their recorded digests",
+                "eligibility registration, authority base",
+            ),
+            source="promotion confirmation evidence",
+        )
+        self.assertContainsAll(
+            ready,
+            (
+                "exact **Memory-PR-ready callback**",
+                "`migration: confirmed-legacy-ready` variant",
+                "only for the unchanged Ready tuple",
+            ),
+            source="legacy Ready migration",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "eligibility_registration_sha256: SHA256",
+                "migration: confirmed-legacy-ready",
+                "legacy_evidence_sha256: LEGACY_CALLBACK_SHA256",
+            ),
+            source="shared legacy Ready schema",
+        )
+
+        url_fields = re.findall(
+            r"(?m)^eligibility_registration_url:.*$",
+            self.evidence,
+        )
+        digest_fields = re.findall(
+            r"(?m)^eligibility_registration_sha256:.*$",
+            self.evidence,
+        )
+        self.assertEqual(len(url_fields), len(digest_fields))
+        self.assertGreaterEqual(len(url_fields), 8)
+
+    def test_legacy_eligibility_fixture_has_a_safe_additive_migration(self) -> None:
+        markers = markdown_section(self.skill, "Preserve persistent markers")
+        match = re.search(
+            r"pre-schema-v2 Closeout producer persisted this exact legacy "
+            r"eligibility semantic minimum:\n\n~~~text\n(.*?)\n~~~",
+            self.evidence,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        assert match is not None
+        legacy_fixture = match.group(1).splitlines()
+        self.assertEqual(
+            legacy_fixture,
+            [
+                "<!-- ${marker_namespace}:context-promotion-eligible source-pr=456 source-head=COMMIT -->",
+                "state: awaiting-merge",
+                "issue_url: URL",
+                "issue_body_sha256: SHA256",
+                "pr_body_sha256: SHA256",
+                "base_ref: develop",
+                "base_sha: COMMIT",
+                "acceptance_comment_url: URL",
+            ],
+        )
+        self.assertNotIn("schema_version:", legacy_fixture)
+        self.assertNotIn("acceptance_comment_sha256:", legacy_fixture)
+        self.assertNotIn("issue_callback_url:", legacy_fixture)
+
+        legacy = markdown_section(
+            self.evidence,
+            "Dual-read legacy promotion callbacks",
+        )
+        closeout_success = markdown_section(
+            self.closeout,
+            "Complete successful acceptance",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "Do not require the old payload to contain source title",
+                "An unmerged product PR must pass a fresh Closeout",
+                "already merged historical product PR",
+            ),
+            source="root legacy eligibility migration",
+        )
+        self.assertContainsAll(
+            legacy,
+            (
+                "compute and bind both whole-comment digests during the current read",
+                "reconstruct the complete five-category assessment",
+            ),
+            source="legacy callback dual-read",
+        )
+        self.assertIn(
+            "historical field that its producer did not promise",
+            self.evidence,
+        )
+        self.assertContainsAll(
+            closeout_success,
+            (
+                "complete fresh Closeout",
+                "active schema-v2 registration is stale while the source head is unchanged",
+                "non-superseded tip as active",
+                "one-to-one pair",
+            ),
+            source="Closeout legacy eligibility successor",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "schema_version: 2",
+                "previous_registration_url:",
+                "previous_registration_sha256:",
+                "supersedes_legacy_registration_url:",
+                "supersedes_legacy_registration_sha256:",
+            ),
+            source="shared eligibility successor schema",
+        )
+
+    def test_persisted_merge_tuples_and_changed_files_are_complete(self) -> None:
+        implementation_result = markdown_section(
+            self.implementation,
+            "Return a persistent phase result",
+        )
+        closeout_success = markdown_section(
+            self.closeout,
+            "Complete successful acceptance",
+        )
+        closeout_result = markdown_section(self.closeout, "Return a closed result")
+        proposal = markdown_section(
+            self.promotion,
+            "Persist the exact proposal artifact",
+        )
+        review = markdown_section(self.promotion, "Require independent review")
+        ready = markdown_section(
+            self.promotion,
+            "Mark a confirmed project-memory PR Ready",
+        )
+        delivery_result = markdown_section(self.delivery, "Return the delivery result")
+
+        self.assertContainsAll(
+            implementation_result,
+            ("head_ref:", "require `branch == head_ref`"),
+            source="Implementation head tuple",
+        )
+        self.assertContainsAll(
+            closeout_success,
+            (
+                "exact **Product acceptance Issue callback**",
+                "exact **Current eligibility registration**",
+                "bind its URL and digest",
+            ),
+            source="Closeout complete tuple",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "pr_title: TITLE",
+                "head_ref: BRANCH",
+                "head_sha: COMMIT",
+                "schema_version: 2",
+            ),
+            source="shared Closeout complete tuple",
+        )
+        self.assertContainsAll(
+            closeout_result,
+            (
+                "eligibility_registration_url:",
+                "promotion_registration_url:",
+                "retained deprecated aliases",
+            ),
+            source="Closeout compatibility alias",
+        )
+        self.assertContainsAll(
+            proposal,
+            (
+                "exact **Proposal artifact**",
+                "shared cross-field rules",
+                "updates both base fields to the same new `develop` SHA",
+            ),
+            source="promotion artifact tuple",
+        )
+        self.assertContainsAll(
+            review,
+            (
+                "exact **Reviewer PASS for a write**",
+                "exact sorted artifact/transport view",
+            ),
+            source="write Reviewer PASS schema",
+        )
+        self.assertContainsAll(
+            ready,
+            (
+                "exact **Memory-PR-ready callback**",
+                "exact sorted artifact/Reviewer identities",
+            ),
+            source="memory Ready evidence",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "source_head_ref: BRANCH",
+                "memory_pr_title: TITLE",
+                "memory_head_ref: BRANCH",
+                "memory_head_ref: BRANCH | null",
+                "changed_files:",
+                "status: added | modified | removed | renamed",
+                "blob_sha: SHA | null",
+                "`authority_base_sha == memory_base_sha`",
+                "review_kind: context-promotion-write",
+            ),
+            source="shared promotion tuple schemas",
+        )
+        self.assertContainsAll(
+            delivery_result,
+            (
+                "product_head_ref:",
+                "memory_head_ref:",
+                "issue_state_reason: null | completed",
+                "proposal_comment_*` becomes `promotion_proposal_*",
+                "source_callback_*` becomes `promotion_terminal_*",
+            ),
+            source="delivery result field mapping",
+        )
+
+    def test_promotion_author_identity_active_tip_and_supersession_are_explicit(self) -> None:
+        lineage = markdown_section(self.evidence, "Validate active lineages")
+        repair = markdown_section(
+            self.promotion,
+            "Apply modification requests and promotion-scope repairs",
+        )
+        result = markdown_section(
+            self.promotion,
+            "Return a persistent phase result",
+        )
+        self.assertContainsAll(
+            self.evidence,
+            (
+                "Establish its `mutation_author_login` as the trusted workflow author",
+                "transport-returned author login",
+                "current live structured-input result",
+                "host-provenance-bound `user_decision`",
+                "Define the active tip as the sole reachable, non-superseded end",
+                "multiple active or unsuperseded confirmed revisions",
+            ),
+            source="promotion trusted active chain",
+        )
+        self.assertIn("sole reachable, non-superseded end", lineage)
+        self.assertContainsAll(
+            repair,
+            (
+                "changes a write proposal to all-`no_write`",
+                "state: superseded-by-context-promotion",
+                "non-active and must never be merged or reused",
+                "create a new branch/Draft memory PR",
+                "Allow the closure gate to ignore only an exact open Draft memory PR",
+            ),
+            source="write-to-no-write supersession",
+        )
+        self.assertContainsAll(
+            result,
+            (
+                "return-to-definition",
+                "role: delivery | external-review | context-promotion | definition",
+                "exact requested product-contract change",
+            ),
+            source="typed promotion return",
+        )
+
+    def test_transport_exposes_guard_inputs_and_verified_merge_provenance(self) -> None:
+        merge_guard = markdown_section(self.pr_transport, "Guard an exact merge")
+        check_evidence = markdown_section(
+            self.pr_transport,
+            "Report check evidence conservatively",
+        )
+        envelope = markdown_section(
+            self.pr_transport,
+            "Return the shared result envelope",
+        )
+        self.assertContainsAll(
+            merge_guard,
+            (
+                "`merge_kind: product` or `merge_kind: memory`",
+                "do not accept caller-defined evidence names",
+                "actual merge method as exactly `merge`, `squash`, or `rebase`",
+                "Produce `merge_provenance` only from an authoritative merge event",
+                "A caller-supplied or copied expected base is not provenance",
+            ),
+            source="deterministic merge inputs",
+        )
+        self.assertContainsAll(
+            check_evidence,
+            (
+                "Normalize the applicable required subset separately as `required_checks`",
+                "`success`, `failure`, `pending`, `missing`, or `unavailable`",
+                "`required_checks_known: true`",
+            ),
+            source="required-check mapping",
+        )
+        self.assertContainsAll(
+            envelope,
+            (
+                "merge_provenance:",
+                "guarded_base_sha:",
+                "guarded_head_sha:",
+                "required_checks:",
+            ),
+            source="transport guard snapshot",
+        )
+        for name, transport in (
+            ("Issue transport", self.issue_transport),
+            ("Pull Request transport", self.pr_transport),
+        ):
+            self.assertContainsAll(
+                transport,
+                (
+                    "authenticated_actor:",
+                    "login: null",
+                    "id: null",
+                    "mutation_author_login: null",
+                    "verified: false",
+                    "Independently resolve the selected transport's authenticated actor login/ID",
+                ),
+                source=f"{name} authenticated identity",
+            )
+
+    def test_completed_delivery_closes_and_independently_verifies_the_issue(self) -> None:
+        closure = markdown_section(self.delivery, "Close the source Issue")
+        result = markdown_section(self.delivery, "Return the delivery result")
+
+        self.assertContainsAll(
+            closure,
+            (
+                "Closeout-accepted product head is merged into `develop`",
+                "one exact non-invalidated schema-v2 `confirmed` callback",
+                "ends in either verified `no-promotion`",
+                "`memory-pr-merged` callback",
+                "sole active schema-v2 tip is the exact `legacy-reconciliation` confirmation",
+                "legacy callback supplies terminal outcome evidence without creating a duplicate terminal",
+                "explicit `change-metadata` mutation",
+                "setting `state: closed` and `state_reason: completed`",
+                "Independently read the Issue back",
+                "Accept only `verified` or `no-op`",
+                "`state: closed`",
+                "`read_back_verified: true`",
+                "Do not use a closing keyword",
+            ),
+            source="delivery Issue closure gate",
+        )
+        closure_judgment = markdown_section(
+            self.promotion,
+            "Judge source Issue closure",
+        )
+        self.assertContainsAll(
+            closure_judgment,
+            (
+                "schema-v2 `confirmed` callback with `proposal_kind: legacy-reconciliation`",
+                "legacy callback supplies terminal outcome evidence",
+                "active schema-v2 confirmation supplies current closure authority",
+                "do not require or create a duplicate terminal",
+            ),
+            source="legacy terminal closure exception",
+        )
+        self.assertContainsAll(
+            result,
+            (
+                "outcome: completed | return-to-definition | blocked",
+                "product_merge_commit_sha:",
+                "promotion_proposal_sha256:",
+                "promotion_confirmation_sha256:",
+                "promotion_terminal_outcome:",
+                "memory_merge_commit_sha:",
+                "issue_closure: open | closed",
+                "issue_state_verified: false",
+                "Return `completed` only with `issue_closure: closed`, `issue_state_verified: true`",
+            ),
+            source="delivery terminal result",
+        )
+        self.assertContainsAll(
+            self.issue_transport,
+            (
+                "current `delivery` coordinator",
+                "current explicit standalone `role: context-promotion`",
+                "Never accept final closure from a phase Agent delegated by `delivery`",
+                "| Change metadata |",
+                "explicit state/state reason",
+                "perform a separate fetch",
+                "read_back_verified: true | false | null",
+            ),
+            source="Issue close transport",
+        )
+
+    def test_legacy_no_promotion_cannot_hide_a_new_write(self) -> None:
+        legacy = markdown_section(
+            self.evidence,
+            "Dual-read legacy promotion callbacks",
+        )
+        no_promotion = markdown_section(
+            self.promotion,
+            "Complete confirmed no-promotion",
+        )
+        closure = markdown_section(
+            self.promotion,
+            "Judge source Issue closure",
+        )
+
+        self.assertContainsAll(
+            legacy,
+            (
+                "closure-only legacy `no-promotion` or `memory-pr-merged`",
+                "preserves the exact terminal outcome",
+                "if reassessment of legacy `no-promotion` finds a write",
+                "normal Ready → coordinator merge → current `memory-pr-merged` path",
+                "`proposal_kind: write`",
+                "`revision_reason: legacy-reassessment`",
+                "both predecessor/evidence pairs",
+                "complete five-category assessment",
+            ),
+            source="legacy no-promotion migration",
+        )
+        self.assertContainsAll(
+            no_promotion,
+            (
+                "keeps every durable category `no_write`",
+                "all memory-PR fields null",
+                "old terminal as superseded evidence",
+                "require a new `memory-pr-merged` terminal before closure",
+            ),
+            source="legacy no-promotion completion",
+        )
+        self.assertIn(
+            "schema-v2 write branch that binds and supersedes legacy no-promotion is closable only from its own active `memory-pr-merged` terminal",
+            closure,
+        )
+        self.assertIn(
+            "exact predecessor legacy callback as superseded audit evidence, not as a conflicting active terminal",
+            closure,
+        )
+        delivery_closure = markdown_section(self.delivery, "Close the source Issue")
+        self.assertIn(
+            "exact legacy `no-promotion` predecessor bound and superseded by the active schema-v2 write branch is audit evidence rather than a conflict",
+            delivery_closure,
+        )
+
+    def test_confirmed_is_persisted_recovery_not_a_success_result(self) -> None:
+        confirmation = markdown_section(
+            self.promotion,
+            "Persist and relay the confirmation gate",
+        )
+        result = markdown_section(
+            self.promotion,
+            "Return a persistent phase result",
+        )
+        relay = markdown_section(
+            self.delivery,
+            "Relay the Context Promotion confirmation",
+        )
+
+        self.assertContainsAll(
+            confirmation,
+            (
+                "exact **Confirmed callback**",
+                "Do not return `confirmed` as a successful phase result",
+                "continue an unchanged normal all-`no_write` proposal to schema-v2 `no-promotion`",
+                "write that supersedes legacy `no-promotion`",
+                "return that existing terminal plus the new confirmation as terminal evidence",
+                "continue to the applicable migrated schema-v2 `memory-pr-ready` or `memory-pr-merged`",
+                "fresh Context Promotion reconciler resumes from it without requesting approval again",
+            ),
+            source="confirmed continuation",
+        )
+        self.assertIn(
+            "proposal_kind: write | no-write | legacy-reconciliation",
+            self.evidence,
+        )
+        outcome_line = re.search(r"(?m)^outcome: .+$", result)
+        self.assertIsNotNone(outcome_line)
+        assert outcome_line is not None
+        self.assertNotIn("confirmed", outcome_line.group(0))
+        self.assertContainsAll(
+            relay,
+            (
+                "continue in that same phase invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result",
+                "`confirmed` alone is a recoverable interrupted state, not a successful phase result",
+            ),
+            source="coordinator confirmed handling",
+        )
+
+    def test_already_merged_recovery_uses_exact_guard_or_explicit_legacy_exception(
+        self,
+    ) -> None:
+        recovery = markdown_section(self.delivery, "Reconstruct the persistent state")
+        product = markdown_section(self.delivery, "Merge the accepted product PR")
+        memory = markdown_section(self.delivery, "Merge approved project memory")
+
+        self.assertContainsAll(
+            recovery,
+            (
+                "product merge gate's already-merged `no-op` recovery",
+                "project-memory merge gate's already-merged `no-op` recovery",
+                "complete current gate evidence, method, provenance, checks, and tuple",
+                "explicit read-only legacy integration exception",
+            ),
+            source="already-merged recovery routing",
+        )
+        self.assertContainsAll(
+            product,
+            (
+                "Use this same operation for current-format already-merged recovery",
+                "accept only its exact `no-op`",
+                "historical legacy integration row is a read-only compatibility exception",
+                "must not be reported as a current-format transport `no-op`",
+            ),
+            source="product already-merged guard",
+        )
+        self.assertContainsAll(
+            memory,
+            (
+                "Use this same operation for current-format already-merged recovery",
+                "accept only its exact `no-op`",
+                "every required check successful",
+                "verified merge provenance",
+            ),
+            source="memory already-merged guard",
+        )
+
+    def test_standalone_context_reconciliation_uses_the_same_merged_checks(
+        self,
+    ) -> None:
+        source = markdown_section(
+            self.promotion,
+            "Verify the source and promotion state chain",
+        )
+        memory = markdown_section(
+            self.promotion,
+            "Reconcile a merged project-memory PR",
+        )
+
+        for name, section in (
+            ("merged product source admission", source),
+            ("merged memory reconciliation", memory),
+        ):
+            self.assertContainsAll(
+                section,
+                (
+                    "required_checks_known: true",
+                    "every required check currently successful",
+                    "actual merge method allowed by authoritative repository policy",
+                    "transport-verified merge provenance",
+                    "Do not require post-merge mergeability",
+                ),
+                source=name,
+            )
+        self.assertIn("whether delegated or standalone", source)
+        self.assertIn(
+            "Apply these checks equally under delegated and standalone entry",
+            memory,
+        )
+        policy = markdown_section(self.skill, "Bind repository policy and mutations")
+        self.assertContainsAll(
+            policy,
+            (
+                "For a new merge mutation",
+                "An exact already-merged recovery instead requires verified merge provenance",
+                "does not require post-merge mergeability",
+            ),
+            source="root mergeability scope",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

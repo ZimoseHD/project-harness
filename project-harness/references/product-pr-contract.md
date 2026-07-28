@@ -6,7 +6,7 @@ Treat this file as the sole authoritative schema for the product Pull Request Bo
 
 ## Field rules
 
-- Use a plain `Refs` link to associate the source Issue. Do not use a closing keyword; source Issue closure belongs only to Context Promotion.
+- Use a plain `Refs` link to associate the source Issue. Do not use a closing keyword; Context Promotion owns the closure judgment, and only its standalone role or the authorized `delivery` coordinator performs the explicit close mutation.
 - Bind the exact Issue Body digest, product head SHA, and integration base ref/SHA.
 - Record observable results, actual changes, plan deviations, executable verification evidence, and known limitations without copying the Issue contract.
 - Classify the actual durable-memory impact from evidence. Use `无` for a category with no impact; ordinary code-discoverable implementation details are `no_write`.

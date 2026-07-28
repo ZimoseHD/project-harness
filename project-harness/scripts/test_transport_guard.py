@@ -8,6 +8,7 @@ import unittest
 from transport_guard import (
     changed_protected_fields,
     content_decision,
+    exact_merge_guard,
     recover_ambiguous_mutation,
     select_active_candidate,
     verify_readback,
@@ -85,6 +86,485 @@ class TransportGuardTests(unittest.TestCase):
                 dict(self.snapshot, head_sha="head-b"),
                 fields,
                 operation_evidence=True,
+            ),
+            "indeterminate",
+        )
+
+    def _merge_snapshot(self) -> dict[str, object]:
+        return {
+            "title": "Deliver feature",
+            "body_sha256": "1" * 64,
+            "state": "open",
+            "is_draft": False,
+            "merged": False,
+            "merge_commit_sha": None,
+            "merge_method": None,
+            "head_ref": "task/7",
+            "head_sha": "head-a",
+            "base_ref": "develop",
+            "base_sha": "base-a",
+            "required_checks_known": True,
+            "required_checks": {
+                "build": "success",
+                "test": "success",
+            },
+            "mergeable": True,
+        }
+
+    def _expected_merge_tuple(self) -> dict[str, str]:
+        return {
+            "title": "Deliver feature",
+            "body_sha256": "1" * 64,
+            "head_ref": "task/7",
+            "head_sha": "head-a",
+            "base_ref": "develop",
+            "base_sha": "base-a",
+        }
+
+    def _required_evidence(self) -> dict[str, tuple[str, str]]:
+        return {
+            "closeout-pass": (
+                "https://github.com/owner/repo/pull/7#issuecomment-1",
+                "a" * 64,
+            ),
+            "issue-callback": (
+                "https://github.com/owner/repo/issues/7#issuecomment-2",
+                "b" * 64,
+            ),
+            "eligibility-registration": (
+                "https://github.com/owner/repo/pull/7#issuecomment-3",
+                "c" * 64,
+            ),
+        }
+
+    def _merge_guard(
+        self,
+        current: dict[str, object],
+        *,
+        expected: dict[str, str] | None = None,
+        required_evidence: dict[str, tuple[str, str]] | None = None,
+        current_evidence: dict[str, tuple[str, str]] | None = None,
+        merge_kind: str = "product",
+        merge_method: str = "squash",
+        ambiguous_mutation: bool = False,
+    ) -> str:
+        expected_evidence = (
+            self._required_evidence()
+            if required_evidence is None
+            else required_evidence
+        )
+        freshly_read_evidence = (
+            dict(expected_evidence)
+            if current_evidence is None
+            else current_evidence
+        )
+        return exact_merge_guard(
+            self._expected_merge_tuple() if expected is None else expected,
+            current,
+            expected_evidence,
+            merge_method,
+            merge_kind=merge_kind,  # type: ignore[arg-type]
+            current_evidence=freshly_read_evidence,
+            ambiguous_mutation=ambiguous_mutation,
+        )
+
+    def test_exact_merge_guard_allows_only_complete_successful_gate(self) -> None:
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+            ),
+            "proceed",
+        )
+
+        blocked_snapshots = {
+            "draft": dict(self._merge_snapshot(), is_draft=True),
+            "unknown required checks": dict(
+                self._merge_snapshot(),
+                required_checks_known=False,
+            ),
+            "failed required check": dict(
+                self._merge_snapshot(),
+                required_checks={"build": "failure"},
+            ),
+            "unknown mergeability": dict(self._merge_snapshot(), mergeable=None),
+            "merge conflict": dict(self._merge_snapshot(), mergeable=False),
+        }
+        for reason, snapshot in blocked_snapshots.items():
+            with self.subTest(reason=reason):
+                self.assertEqual(
+                    self._merge_guard(
+                        snapshot,
+                    ),
+                    "blocked",
+                )
+
+    def test_exact_merge_guard_blocks_tuple_or_base_drift(self) -> None:
+        for field, changed in {
+            "title": "Changed title",
+            "body_sha256": "2" * 64,
+            "head_ref": "task/other",
+            "head_sha": "head-b",
+            "base_ref": "main",
+            "base_sha": "base-b",
+        }.items():
+            snapshot = self._merge_snapshot()
+            snapshot[field] = changed
+            with self.subTest(field=field):
+                self.assertEqual(
+                    self._merge_guard(
+                        snapshot,
+                    ),
+                    "blocked",
+                )
+
+        expected = self._expected_merge_tuple()
+        expected["base_ref"] = "main"
+        snapshot = self._merge_snapshot()
+        snapshot["base_ref"] = "main"
+        self.assertEqual(
+            self._merge_guard(
+                snapshot,
+                expected=expected,
+            ),
+            "blocked",
+        )
+
+        merged = dict(
+            snapshot,
+            state="closed",
+            merged=True,
+            merge_commit_sha="merge-a",
+            merge_method="squash",
+            merge_provenance={
+                "verified": True,
+                "source": "merge-event",
+                "guarded_base_sha": "base-a",
+                "guarded_head_sha": "head-a",
+                "merge_commit_sha": "merge-a",
+            },
+        )
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+                expected=expected,
+            ),
+            "blocked",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+                expected=expected,
+                ambiguous_mutation=True,
+            ),
+            "indeterminate",
+        )
+
+    def test_exact_merge_guard_blocks_closed_unmerged_and_incomplete_inputs(self) -> None:
+        closed_unmerged = dict(self._merge_snapshot(), state="closed")
+        self.assertEqual(
+            self._merge_guard(
+                closed_unmerged,
+            ),
+            "blocked",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                merge_method=" ",
+            ),
+            "blocked",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                merge_method="bananas",
+            ),
+            "blocked",
+        )
+
+        incomplete_evidence = self._required_evidence()
+        incomplete_evidence["issue-callback"] = ("", "b" * 64)
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=incomplete_evidence,
+            ),
+            "blocked",
+        )
+
+        malformed_evidence = self._required_evidence()
+        malformed_evidence["issue-callback"] = (
+            "https://github.com/owner/repo/issues/7#issuecomment-2",
+            "not-a-sha256",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=malformed_evidence,
+            ),
+            "blocked",
+        )
+
+    def test_exact_merge_guard_requires_exact_evidence_keys_and_fresh_values(self) -> None:
+        evidence = self._required_evidence()
+        product_names = tuple(evidence)
+        memory_evidence = {
+            "proposal-artifact": (
+                "https://github.com/owner/repo/pull/8#issuecomment-1",
+                "d" * 64,
+            ),
+            "confirmation": (
+                "https://github.com/owner/repo/pull/7#issuecomment-4",
+                "e" * 64,
+            ),
+            "reviewer-pass": (
+                "https://github.com/owner/repo/pull/8#issuecomment-2",
+                "f" * 64,
+            ),
+            "memory-pr-ready": (
+                "https://github.com/owner/repo/pull/7#issuecomment-5",
+                "0" * 64,
+            ),
+        }
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=memory_evidence,
+                merge_kind="memory",
+            ),
+            "proceed",
+        )
+
+        cases = {
+            "missing expected key": {
+                "required_evidence": {
+                    name: evidence[name] for name in product_names[:-1]
+                },
+                "current_evidence": None,
+            },
+            "extra expected key": {
+                "required_evidence": memory_evidence,
+                "current_evidence": None,
+            },
+            "missing current key": {
+                "required_evidence": evidence,
+                "current_evidence": {
+                    name: evidence[name] for name in product_names[:-1]
+                },
+            },
+            "extra current key": {
+                "required_evidence": evidence,
+                "current_evidence": memory_evidence,
+            },
+        }
+        for reason, arguments in cases.items():
+            with self.subTest(reason=reason):
+                self.assertEqual(
+                    self._merge_guard(
+                        self._merge_snapshot(),
+                        **arguments,
+                    ),
+                    "blocked",
+                )
+
+        arbitrary_evidence = {
+            "foo": (
+                "https://github.com/owner/repo/pull/7#issuecomment-99",
+                "9" * 64,
+            )
+        }
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=arbitrary_evidence,
+            ),
+            "blocked",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                merge_kind="unknown",
+            ),
+            "blocked",
+        )
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=memory_evidence,
+                merge_kind="product",
+            ),
+            "blocked",
+        )
+
+        for changed_pair in (
+            (
+                "https://github.com/owner/repo/pull/7#issuecomment-changed",
+                "a" * 64,
+            ),
+            (
+                "https://github.com/owner/repo/pull/7#issuecomment-1",
+                "e" * 64,
+            ),
+        ):
+            current_evidence = dict(evidence)
+            current_evidence["closeout-pass"] = changed_pair
+            with self.subTest(current_drift=changed_pair):
+                self.assertEqual(
+                    self._merge_guard(
+                        self._merge_snapshot(),
+                        current_evidence=current_evidence,
+                    ),
+                    "blocked",
+                )
+
+    def test_exact_already_merged_is_no_op_but_conflicting_identity_blocks(self) -> None:
+        merged = dict(
+            self._merge_snapshot(),
+            state="closed",
+            merged=True,
+            merge_commit_sha="merge-a",
+            merge_method="squash",
+            merge_provenance={
+                "verified": True,
+                "source": "merge-event",
+                "guarded_base_sha": "base-a",
+                "guarded_head_sha": "head-a",
+                "merge_commit_sha": "merge-a",
+            },
+        )
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+            ),
+            "no-op",
+        )
+
+        for field, changed in {
+            "title": "Changed title",
+            "merge_commit_sha": None,
+            "merged": False,
+            "is_draft": True,
+            "required_checks_known": False,
+            "required_checks": {"build": "failure"},
+        }.items():
+            conflicting = dict(merged)
+            conflicting[field] = changed
+            with self.subTest(field=field):
+                self.assertEqual(
+                    self._merge_guard(
+                        conflicting,
+                    ),
+                    "blocked",
+                )
+
+        missing_current_evidence = self._required_evidence()
+        missing_current_evidence.pop("eligibility-registration")
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+                current_evidence=missing_current_evidence,
+            ),
+            "blocked",
+        )
+
+        self.assertEqual(
+            self._merge_guard(
+                dict(merged, merge_method="merge"),
+            ),
+            "blocked",
+        )
+
+    def test_merged_base_tip_may_advance_only_with_exact_guarded_base(self) -> None:
+        advanced = dict(
+            self._merge_snapshot(),
+            state="closed",
+            merged=True,
+            merge_commit_sha="merge-a",
+            merge_method="squash",
+            base_sha="base-live-new",
+            merge_provenance={
+                "verified": True,
+                "source": "merge-event",
+                "guarded_base_sha": "base-a",
+                "guarded_head_sha": "head-a",
+                "merge_commit_sha": "merge-a",
+            },
+        )
+        self.assertEqual(self._merge_guard(advanced), "no-op")
+
+        conflicting_guard = dict(
+            advanced,
+            merge_provenance=dict(
+                advanced["merge_provenance"],
+                guarded_base_sha="base-other",
+            ),
+        )
+        self.assertEqual(self._merge_guard(conflicting_guard), "blocked")
+
+        premerge_advanced = dict(
+            self._merge_snapshot(),
+            base_sha="base-live-new",
+            merge_provenance={
+                "verified": True,
+                "source": "merge-event",
+                "guarded_base_sha": "base-a",
+                "guarded_head_sha": "head-a",
+                "merge_commit_sha": "merge-a",
+            },
+        )
+        self.assertEqual(self._merge_guard(premerge_advanced), "blocked")
+
+        missing_provenance = dict(advanced)
+        missing_provenance.pop("merge_provenance")
+        self.assertEqual(self._merge_guard(missing_provenance), "blocked")
+
+    def test_ambiguous_merge_recovery_is_exact_or_indeterminate(self) -> None:
+        merged = dict(
+            self._merge_snapshot(),
+            state="closed",
+            merged=True,
+            merge_commit_sha="merge-a",
+            merge_method="squash",
+            merge_provenance={
+                "verified": True,
+                "source": "merge-event",
+                "guarded_base_sha": "base-a",
+                "guarded_head_sha": "head-a",
+                "merge_commit_sha": "merge-a",
+            },
+        )
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+                ambiguous_mutation=True,
+            ),
+            "no-op",
+        )
+
+        for field, changed in {
+            "title": "Changed title",
+            "state": "open",
+            "merged": False,
+            "merge_commit_sha": None,
+        }.items():
+            not_proven = dict(merged)
+            not_proven[field] = changed
+            with self.subTest(field=field):
+                self.assertEqual(
+                    self._merge_guard(
+                        not_proven,
+                        ambiguous_mutation=True,
+                    ),
+                    "indeterminate",
+                )
+
+        missing_current_evidence = self._required_evidence()
+        missing_current_evidence.pop("eligibility-registration")
+        self.assertEqual(
+            self._merge_guard(
+                merged,
+                current_evidence=missing_current_evidence,
+                ambiguous_mutation=True,
             ),
             "indeterminate",
         )

@@ -137,14 +137,14 @@ decision_sources: []
 reason: null
 recovery_condition: null
 handoff:
-  role: external-review | implementation | definition | context-authoring
+  role: external-review | delivery | implementation | definition | context-authoring
   authoritative_sources: []
   next_action: null
 ~~~
 
-For `verified-existing-decision`, hand off the Issue URL and exact merged ADR to a new `project-harness` session with `role: implementation`.
+For `verified-existing-decision`, normally hand off the Issue URL and exact merged ADR with `role: delivery`; one explicit delivery invocation coordinates all remaining phases. Preserve `role: implementation` only for a caller intentionally using the legacy phase-by-phase path.
 
-For `verified-decision-pr`, hand off only the Ready decision PR URL to external human or repository review. Start `role: implementation` only after a later explicit invocation independently verifies that PR merged into `develop`.
+For `verified-decision-pr`, hand off only the Ready decision PR URL to external human or repository review. Start `role: delivery` only after a later explicit invocation independently verifies that PR merged into `develop`.
 
 For return-to-definition, identify the exact gate or contract defect and require a new `project-harness` invocation with `role: definition` for the same Issue.
 

@@ -1,6 +1,6 @@
 interface:
   display_name: "Project Harness"
-  short_description: "Initialize or run one feature-iteration phase"
-  default_prompt: "Use $project-harness with role: init or one exact lifecycle role and its required inputs."
+  short_description: "Coordinate verified delivery with persistent stage telemetry"
+  default_prompt: "In Plan mode, use $project-harness explicitly with role: delivery to coordinate Implementation, Closeout, Context Promotion, request_user_input confirmation, merge, persistent stage timing/change observations, and Issue closure; use role: init for project setup and an exact phase role only for compatibility or recovery."
 policy:
   allow_implicit_invocation: false

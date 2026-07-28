@@ -157,8 +157,8 @@ Require the returned transport envelope to report `verified` or `no-op`, the exp
 After successful read-back verification, output one minimal hand-off:
 
 - When pre-implementation Context Authoring is `required`, include the GitHub Issue URL, `role: context-authoring`, and the next action to invoke `project-harness` in a new clean session.
-- When it is `not-required`, include the GitHub Issue URL, `role: implementation`, and the next action to invoke `project-harness` in a new clean session.
+- When it is `not-required`, normally include the GitHub Issue URL, `role: delivery`, and the next action to invoke `project-harness` once for the automated Implementation → Closeout → Context Promotion chain. Preserve `role: implementation` as an additive compatibility hand-off only when the caller explicitly chose the legacy phase-by-phase path.
 
 Do not copy the Issue Body into the hand-off. Do not start implementation.
 
-If implementation later discovers a fact that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, or acceptance contract, pause implementation and explicitly invoke `project-harness` with `role: definition` and the same Issue. Re-run the applicable gates, update and re-review the original Issue, and avoid creating a parallel task.
+If Implementation later discovers a fact that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, or acceptance contract, stop the delivery chain and hand the same Issue back to an explicit `role: definition`. Re-run the applicable gates, update and re-review the original Issue, and avoid creating a parallel task.
