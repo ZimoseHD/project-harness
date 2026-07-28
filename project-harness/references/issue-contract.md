@@ -1,0 +1,69 @@
+# Issue Delivery Contract
+
+Load this shared artifact contract only when the selected operation row in the root Skill names the Issue contract.
+
+Treat this file as the sole authoritative schema for the source Issue Body. Keep the headings and order exact, replace every placeholder with task-specific content, and do not publish guidance comments or empty placeholder rows. Do not look for or create a `.github` Issue template.
+
+## Field rules
+
+- `原始需求 / 问题背景` preserves the original problem, affected user or system, and desired outcome without copying the conversation or substituting an implementation.
+- `目标`, `非目标与边界`, `已确认决策`, and `验收与验证` form the binding delivery contract.
+- `按需读取的项目记忆 / 代码事实` lists only sources that materially changed the contract and the conclusion obtained from each.
+- `实现前 Context Authoring` is `required` only for a settled architecture, domain-model, protocol/interface, system-boundary, or project-level technology decision that applies across tasks, must be shared before the product PR merges, and would otherwise create a concrete fork or risk. Otherwise use `not-required` and state why.
+- `合并后 Context Promotion 候选` records non-binding leads only. It never promises a durable write.
+- `confirmed` is required for decisions affecting goals, boundaries, external behavior, constraints, or acceptance. Use `assumed` only for reversible low-risk implementation details and `deferred` only for non-blocking future or externally controlled matters; record the risk and reopening trigger.
+- `实施计划` is a non-binding starting prediction. Return to Definition only when an implementation discovery changes the binding contract.
+
+## Exact Body shape
+
+~~~markdown
+## 原始需求 / 问题背景
+
+<最初要解决的问题、受影响对象与期望结果>
+
+## 目标
+
+<可验证的行为结果>
+
+## 非目标与边界
+
+<明确不做的内容及兼容性、安全、性能或交付限制>
+
+## 按需读取的项目记忆 / 代码事实
+
+| 来源 | 为什么此刻需要 | 获得的结论 |
+| --- | --- | --- |
+| <精确来源> | <需要原因> | <采用结论> |
+
+## 持久项目记忆影响
+
+### 实现前 Context Authoring
+
+- 状态：`required` / `not-required`
+- 架构或技术决策：<结论或不适用>
+- 当前 Issue 以外的消费者：<消费者或不适用>
+- 必须在当前产品 PR 合并前共享的原因：<原因或不适用>
+- 缺失会产生的具体分叉或风险：<风险或不适用>
+
+### 合并后 Context Promotion 候选
+
+- `decision`：<候选或无>
+- `stable_rule`：<候选或无>
+- `wiki_knowledge`：<候选或无>
+- `stable_context`：<候选或无>
+- `milestone_evidence`：<候选或无>
+
+## 已确认决策
+
+| 决策 | 选择 | 理由 | 状态 |
+| --- | --- | --- | --- |
+| <决策> | <选择> | <理由及风险/重开条件> | confirmed / assumed / deferred |
+
+## 实施计划
+
+1. <受影响区域、依赖顺序、阶段结果和所需测试>
+
+## 验收与验证
+
+- [ ] <可执行的验收或验证项>
+~~~

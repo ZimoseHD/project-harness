@@ -1,0 +1,6 @@
+interface:
+  display_name: "Project Harness"
+  short_description: "Initialize or run one feature-iteration phase"
+  default_prompt: "Use $project-harness with role: init or one exact lifecycle role and its required inputs."
+policy:
+  allow_implicit_invocation: false
