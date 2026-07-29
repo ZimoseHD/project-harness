@@ -19,7 +19,7 @@ Execute Harness-authorized GitHub Pull Request operations without owning the wor
 1. Prefer an explicit PR URL or owner/repo plus PR number.
 2. Derive owner/repo from the workspace only when exactly one unambiguous GitHub remote exists.
 3. Read metadata for the exact repository before trusting access.
-4. Discover callable operations by capability rather than tool namespace.
+4. Discover callable operations by capability rather than tool namespace. When requested for Delivery preflight or merge, report whether repository merge-method capability is known and return the exact sorted subset of `merge`, `squash`, and `rebase` currently available.
 5. Require only the capabilities needed for the requested atomic operation and its independent read-back.
 6. Use one authenticated GitHub transport for the entire operation.
 7. Independently resolve the selected transport's authenticated actor login/ID and the login that its mutations will author. Return them as a verified identity record; return blocked when either identity is ambiguous.
@@ -30,14 +30,14 @@ Treat a successful login, global search, enabled connector, or local Git remote 
 
 Allow a mutation only when the current explicit `project-harness` role authorizes that exact PR mutation, or when a current explicit `delivery` invocation supplies a host-provenance-bound delegation whose mutation whitelist includes it. Require the selected operation to supply the exact repository, target, payload, expected baseline, and protected fields.
 
-Allow `merge` only to the current `delivery` coordinator; never accept it from a phase Agent or descendant. Do not treat repository write access, an implicit route, a serialized delegation envelope, a prior hand-off, a general implementation request, an acceptance verdict, user confirmation alone, or Ready state as implicit authority for unrelated PR mutations.
+Allow `merge` only to the current `delivery` coordinator; never accept it from a Phase Owner, Worker, Reviewer, or other descendant. Do not treat repository write access, an implicit route, a serialized delegation envelope, a prior hand-off, a general implementation request, an acceptance verdict, user confirmation alone, or Ready state as implicit authority for unrelated PR mutations.
 
 ## Support only atomic operations
 
 | Operation | Required behavior |
 | --- | --- |
 | search | Search the exact repository and requested open/closed scope. Return normalized PR candidates without semantic classification. |
-| read | Fetch the exact PR identity, title, Body, Draft/open/merged state, merge identity and verified merge provenance when requested, head ref/SHA, base ref/SHA, mergeability when available, requested top-level comments, and requested changed-file/unified-diff evidence. For each requested comment return identity, URL, author login, creation time, normalized Body digest, and Body when requested. |
+| read | Fetch the exact PR identity, title, Body, Draft/open/merged state, merge identity and verified merge provenance when requested, head ref/SHA, base ref/SHA, mergeability when available, repository merge-method capability when requested, requested top-level comments, and requested changed-file/unified-diff evidence. For each requested comment return identity, URL, author login, creation time, normalized Body digest, and Body when requested. |
 | create-draft | Require exact title, complete Body, head ref, base ref, and explicit Draft intent. Never infer labels, reviewers, or other metadata. |
 | replace-content | Require the exact PR and a complete replacement title and/or Body. Never patch a fuzzy section. |
 | add-comment | Require exact Markdown comment text and explicit authority. |
@@ -45,7 +45,7 @@ Allow `merge` only to the current `delivery` coordinator; never accept it from a
 | read-checks | Read combined commit status and applicable workflow runs for the exact head SHA. Report required-check knowledge separately from observed checks. |
 | mark-ready | Change an exact open Draft PR to Ready only with explicit workflow authority. |
 | convert-to-draft | Change an exact open Ready PR to Draft only with explicit workflow authority. |
-| merge | Merge one exact open Ready PR only for the current `delivery` coordinator. Require expected title/Body digest, head ref/SHA, base ref/SHA, known successful required checks, affirmatively established mergeability, exact merge method from authoritative repository policy, and caller-supplied gate evidence URL/digest pairs. |
+| merge | Merge one exact open Ready PR only for the current `delivery` coordinator. Require expected title/Body digest, head ref/SHA, base ref/SHA, known successful required checks, affirmatively established mergeability, exact merge method from a validated Harness integration policy, current repository support for that method, and caller-supplied gate evidence URL/digest pairs. |
 
 Reject auto-merge, close without merge, reopen, branch creation, commit creation, arbitrary ref updates, Issue mutations, inline code review, reviewer assignment, and semantic approval.
 
@@ -83,11 +83,11 @@ For create-draft, search immediately before creation and never create when the c
 
 Treat merge as an irreversible integration mutation, not as a convenience state change.
 
-1. Require `role: delivery` authority for the exact Issue lineage and a caller-selected `merge_method` established from authoritative repository policy. Never choose a method in the transport.
+1. Require `role: delivery` authority for the exact Issue lineage and a caller-selected `merge_method` resolved from a valid Harness integration policy: schema-v2 uses the configured product or project-memory method; schema-v1 compatibility uses the sole authoritatively available method. Never choose or substitute a method in the transport.
 2. Require the exact expected PR title, normalized Body digest, Ready/open state, head ref/SHA, base ref `develop`, base SHA, successful required checks with `required_checks_known: true`, and `mergeable: true` or the selected transport's authoritative equivalent. Treat unknown mergeability as blocked, not as permission to attempt the irreversible mutation.
 3. Require caller-supplied persistent gate evidence URL/digest pairs. For a product PR these identify Closeout PASS, the Issue callback, and eligibility registration. For a project-memory PR they identify the proposal artifact, confirmation, Reviewer PASS, and memory-pr-ready callback. Return blocked when any required URL or normalized whole-comment digest is absent; leave semantic validation to the `delivery` caller.
 4. Set `merge_kind: product` or `merge_kind: memory`; do not accept caller-defined evidence names. The deterministic guard fixes product evidence to `closeout-pass`, `issue-callback`, and `eligibility-registration`, and memory evidence to `proposal-artifact`, `confirmation`, `reviewer-pass`, and `memory-pr-ready`.
-5. Immediately before merge, obtain the PR/check snapshot and independently re-read every evidence comment through the applicable loaded transport. Compare every expected field, protected field, evidence URL/digest, and protocol-owned evidence kind with the baseline. Return blocked on a missing/extra evidence kind, drift, Draft state, unknown or non-successful required checks, wrong base, closed-unmerged state, or mergeability other than affirmative true.
+5. Immediately before merge, obtain the PR/check snapshot, re-read repository merge-method capability, and independently re-read every evidence comment through the applicable loaded transport. Require `merge_methods_known: true` and the selected method to remain in `available_merge_methods`. Compare every expected field, protected field, evidence URL/digest, and protocol-owned evidence kind with the baseline. Return blocked on a missing/extra evidence kind, drift, unavailable configured method, Draft state, unknown or non-successful required checks, wrong base, closed-unmerged state, or mergeability other than affirmative true.
 6. If the exact PR is already merged, independently verify non-Draft state, currently known and successful required checks for the exact head, the expected title/Body/head/base tuple, all protocol-owned evidence URL/digest pairs, the actual merge method as exactly `merge`, `squash`, or `rebase` and equal to the requested authoritative method, verified merge provenance, and a non-null merge commit identity. Return `no-op` only for an exact match; return blocked or indeterminate for a conflicting identity. This recovery proves the current persistent state conservatively; it does not claim that a fresh re-entry observed the checks at the historical merge instant.
 7. Send one merge mutation. Do not retry a timeout or missing response.
 8. Recover an ambiguous response only by independently fetching the exact PR and evidence, then proving `merged: true`, the expected tuple, all protocol-owned evidence pairs, and a non-null merge commit identity. Otherwise return `indeterminate`.
@@ -100,7 +100,7 @@ Never weaken a merge gate because branch protection would have rejected an unsaf
 - Bind check reads to the exact head SHA.
 - Return combined commit status and each observed status/workflow run.
 - Distinguish success, failure, pending, missing, and unavailable capability.
-- Normalize the applicable required subset separately as `required_checks`, mapping each unique required check name to exactly `success`, `failure`, `pending`, `missing`, or `unavailable`. An empty mapping is valid only when `required_checks_known: true` proves the authoritative required set is empty.
+- Normalize the applicable required subset separately as `required_checks`, mapping each unique required check name to exactly `success`, `failure`, `pending`, `missing`, or `unavailable`. An empty mapping is valid only when `required_checks_known: true` proves the authoritative required set is empty; in that case a raw combined status such as `pending` with zero legacy contexts remains diagnostic and does not invent a required-check blocker.
 - Report required_checks_known as false when branch-protection or repository-rule requirements cannot be discovered.
 - Never infer that no observed checks means no required checks.
 - Let the selected `role: closeout` operation decide whether unavailable required-check knowledge blocks acceptance.
@@ -142,6 +142,8 @@ snapshot:
   base_ref: develop
   base_sha: null
   mergeable: null
+  available_merge_methods: []
+  merge_methods_known: null
   comment_ids: []
   comments:
     - id: null
@@ -174,7 +176,7 @@ candidates: []
 reason: null
 ~~~
 
-Include the complete PR Body, comment Body, or unified diff only when requested by the caller. Always include its digest when it exists. For every requested comment, always include ID, URL, author, creation time, and digest so workflow authorship, immutable-baseline, predecessor, and legacy checks are executable. When changed-file or diff evidence is requested, always return the complete sorted file metadata and `diff_sha256`. Treat only verified and no-op as success.
+Include the complete PR Body, comment Body, or unified diff only when requested by the caller. Always include its digest when it exists. For every requested comment, always include ID, URL, author, creation time, and digest so workflow authorship, immutable-baseline, predecessor, and legacy checks are executable. When changed-file or diff evidence is requested, always return the complete sorted file metadata and `diff_sha256`. Set `merge_methods_known: true` only after authoritative repository metadata establishes the complete available set; sort that set and reject unknown values. Treat only verified and no-op as success.
 
 ## Use the bundled verifier
 

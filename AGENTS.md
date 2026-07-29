@@ -33,13 +33,15 @@
 
 `definition` → 按需 `context-authoring` → `delivery`
 
-`delivery` 由显式调用启动并由协调 Agent 自动编排；除 Context Promotion 的 source-bound 用户确认门会按下述规则跨回合暂停外，阶段迁移无需用户介入：
+`delivery` 由显式调用启动并由协调 Agent 自动编排；除 Context Promotion 的 source-bound 用户确认门会按下述规则跨回合暂停外，阶段迁移、产品 PR 合并、项目记忆 PR 合并和 Issue 关闭均无需用户代操作：
 
 `implementation` → `closeout` → 产品 PR 合并 → `context-promotion` → 按需项目记忆 PR 合并 → Issue 关闭
 
 `implementation`、`closeout` 和 `context-promotion` 仍是精确的兼容/恢复入口。它们保留各自阶段边界，不自动获得 `delivery` 的合并权限。`external-review` 仍是 `context-authoring` 及兼容阶段入口的停止和交接目的地，不是可执行角色。
 
-Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并在角色边界停止。`delivery` 协调 Agent 不得代行阶段语义，而应自动创建隔离的阶段 Agent、消费经持久证据绑定的最小 hand-off，并在相同顶层调用中推进后续阶段；唯一例外是 Context Promotion 的用户确认门：协调 Agent 持久化并总结精确提案后结束当前回合，等待用户携带角色、提案 URL/整段评论 SHA-256 摘要和决策显式 re-entry。不得要求用户为其他正常阶段迁移手工创建新会话。独立 Reviewer 和每轮重新审查同样使用新的隔离 Agent 上下文。聊天摘要、普通 hand-off 或隐式记忆不能补全权威事实和写权限。
+Skill 运行时的每个阶段由一个隔离的 Phase Owner 执行一个精确角色并在角色边界停止。`delivery` 协调 Agent 不得代行阶段语义，而应维护 `Delivery Coordinator → Phase Owner → 直接只读 Worker / 独立 Reviewer` 固定两跳委派拓扑：Phase Owner 是该语义轮次唯一的阶段写入者和 hand-off 生产者，Worker 与 Reviewer 不得写入或继续委派。相同绑定输入和目标构成的语义轮次持续复用同一个 Owner；慢读取、活跃工具调用、Worker 失败或 Reviewer FAIL 都不构成重启 Owner 的理由。只有绑定输入或目标变化、Owner 明确终止，或宿主确认其上下文不可恢复时，协调 Agent 才创建新的隔离 Owner。
+
+协调 Agent 消费经持久证据绑定的最小 hand-off，并在相同顶层调用中推进后续阶段；唯一例外是 Context Promotion 的用户确认门：Phase Owner 持久化精确提案，协调 Agent 独立回读并总结后结束当前回合，等待用户携带角色、提案 URL/整段评论 SHA-256 摘要和决策显式 re-entry。不得要求用户为其他正常阶段迁移、PR 合并或 Issue 关闭手工创建新会话。独立 Reviewer 和每轮重新审查使用新的隔离 Reviewer 上下文，但 Reviewer 只返回绑定 tuple 的结构化判定；对应 Phase Owner 负责后续持久写入。聊天摘要、普通 hand-off 或隐式记忆不能补全权威事实和写权限。
 
 `delivery` 协调 Agent 在每个有持久证据的受界定尝试或成功边界后，把耗时质量、分域修改项预览和证据绑定为 Source Issue 上的版本化阶段观察。观察仅用于审计和统计，不是第四个 workflow marker，不能充当状态恢复、授权、PASS、合并或语义关闭证据；完整观察覆盖只是 Delivery 自身的合规完成门禁。实时运行可记录单调时钟实测耗时，恢复与补录不得伪造历史时长。Issue 关闭后还要追加 `issue-closed` 观察并确认 Issue 仍保持关闭；若评论被锁定，只能保留关闭状态并恢复日志，禁止重开。
 
@@ -68,23 +70,23 @@ Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并�
 
 1. 只接受当前用户消息明确提供的 `init`、`definition`、`context-authoring`、`delivery`、`implementation`、`closeout`、`context-promotion` 这些精确角色及其规定输入，不推断、不设别名。Codex 由宿主强制 `$project-harness` 显式调用；Claude Code 允许 `/project-harness` 或模型按相关性加载，但加载本身不补全缺失角色、权威来源或 mutation authority。
 2. Issue 是交付合同，Product PR 是实现结果和证据载体；持久知识只进入规定的单一权威层。
-3. 每个阶段 Agent 只执行一个操作。`delivery` 协调 Agent 只做编排、原子集成和用户交互；阶段迁移、独立 Reviewer 和重新审查使用新的隔离 Agent。
+3. 每个阶段由一个 Phase Owner 执行一个操作。`delivery` 协调 Agent 只做编排、原子集成和用户交互；Owner 只可直接创建窄范围只读 Worker 和独立 Reviewer，二者不得写入或继续委派。相同语义轮次复用同一个 Owner，新的阶段、绑定输入/目标变化、Owner 明确终止或不可恢复上下文才使用新的隔离 Owner。
 4. 权威 URL、当前仓库事实和显式授权不可由目录名、仓库状态、历史会话或普通 hand-off 猜测。内部委派只能从当前显式 `delivery` 调用逐层缩小，并绑定精确来源、快照、持久证据和允许的 mutation。
 5. GitHub 写入遵循内部 transport：规范化内容、绑定摘要、保护基线、写前复查、原子变更和独立回读。
 6. 只有 `verified` 或 `no-op` 表示成功；部分成功、歧义、证据缺失和字段不匹配都必须 fail closed。
-7. 阶段 Agent 都在合并前停止，不得推断 merge authority。只有当前显式 `delivery` 调用的协调 Agent 可按内部 transport 合并已绑定且通过全部门禁的产品 PR 和项目记忆 PR；合并方法必须来自权威仓库策略。产品与项目记忆的集成基线是 `develop`，`main` 保留给 release/hotfix 流程。
+7. Phase Owner 都在合并前停止，不得推断 merge authority。只有当前显式 `delivery` 调用的协调 Agent 可按内部 transport 自动合并已绑定且通过全部门禁的产品 PR 和项目记忆 PR。当前配置 schema-v2 的两类合并方法分别来自 `.project-harness/config.yaml`；schema-v1 兼容读取只在仓库权威可用方法唯一时自动解析，否则必须在 Delivery 首次 mutation 前返回显式 `init` 迁移。不得把正常合并交给用户手工完成。产品与项目记忆的集成基线保持 `develop`，`main` 保留给 release/hotfix 流程。
 8. 确定性脚本保持纯粹、可测试，不能隐藏授权判断、产品判断或网络副作用。
 9. Delivery 阶段观察只能由当前协调 Agent 在 Source Issue 上追加并独立回读；它们不带 `${marker_namespace}` marker、不得成为流程权威或被写入项目记忆，也不得持久化原始用户输入、聊天推理、工具日志、secret 或绝对本地路径。
 
 以下内容属于跨版本兼容性表面：
 
 - 精确角色名、调用包字段、内部 delegation 字段和 hand-off 字段；
-- `.project-harness/config.yaml` 路径、`schema_version` 和 `marker_namespace` 规则；
+- `.project-harness/config.yaml` 路径、`schema_version`、`marker_namespace`、integration 基线和两类 merge method 规则；
 - 三个持久 marker 的名称、生产者和消费者；
 - Issue / Product PR Body 的标题、顺序和必填语义；
 - transport 结果 envelope、成功状态、merge 操作和受保护字段；
 - Markdown 规范化及 SHA-256 摘要算法；
-- 各阶段及 `delivery` 的权威输入、持久输出、权限边界、自动恢复和停止位置；
+- 各阶段及 `delivery` 的权威输入、持久输出、Phase Owner/Worker/Reviewer 所有权、自动恢复和停止位置；
 - Closeout verdict/Issue callback/eligibility registration 与 Context Promotion 提案、Reviewer PASS、schema-v2 confirmation/Ready/terminal 回调的字段、marker、tuple/digest 绑定、前驱关系、active-tip 和 legacy dual-read 行为；
 - Context Promotion 显式 source-bound 用户确认、跨回合停止/恢复和 Issue 关闭顺序；
 - Delivery log 的 schema 版本、阶段/边界枚举、`attempt_id`、`transition_key` 算法、计时与分域修改质量、修改项上限、隐私边界、三层覆盖和关闭后观察规则。
@@ -121,8 +123,8 @@ python3 -B -m unittest discover -s project-harness/scripts -p 'test_*.py' -v
 - `SKILL.md` 调度表中的角色、引用、权威输入、输出和恢复路径仍与角色文件一致；
 - 共享契约只有一个权威定义，引用方没有形成第二份 schema；
 - marker、配置 schema、digest 和 transport 状态的生产者与消费者一致；
-- `delivery` 可从每个已持久状态幂等恢复，内部 delegation 不会扩权，且阶段 Agent / sub-subagent 仍保持职责隔离；
-- 产品 PR 与项目记忆 PR 只在精确门禁后合并，Context Promotion 的变更明细只在显式 source-bound 用户确认后进入集成基线，Issue 只在终态回读后关闭；
+- `delivery` 可从每个已持久状态幂等恢复，内部 delegation 不会扩权，同一语义轮次不会因慢工具或只读子任务失败更换 Owner，且 Worker / Reviewer 不能写入或继续委派；
+- schema-v2 配置方法和 schema-v1 唯一方法兼容解析保持明确；产品 PR 与项目记忆 PR 由 Coordinator 在精确门禁后自动合并，Context Promotion 的变更明细只在显式 source-bound 用户确认后进入集成基线，Issue 只在终态回读后关闭；
 - Delivery 阶段观察只由协调 Agent 追加，实时耗时与恢复补录可区分，修改项有界且不泄露原始用户输入；覆盖检查读取完整分页评论并保持观察与流程权威分离，Issue 关闭后记录精确关闭耗时/变更且绝不为补日志重开；
 - 新增或修改的失败路径仍然保守关闭；
 - 示例输入、输出和 `agents/openai.yaml` 没有承诺不存在的隐式行为；

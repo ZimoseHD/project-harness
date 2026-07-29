@@ -198,6 +198,26 @@ class TransportGuardTests(unittest.TestCase):
                     "blocked",
                 )
 
+    def test_empty_known_required_set_ignores_raw_pending_for_all_methods(
+        self,
+    ) -> None:
+        snapshot = dict(
+            self._merge_snapshot(),
+            required_checks_known=True,
+            required_checks={},
+            raw_combined_status="pending",
+            legacy_status_context_count=0,
+        )
+        for merge_method in ("merge", "squash", "rebase"):
+            with self.subTest(merge_method=merge_method):
+                self.assertEqual(
+                    self._merge_guard(
+                        snapshot,
+                        merge_method=merge_method,
+                    ),
+                    "proceed",
+                )
+
     def test_exact_merge_guard_blocks_tuple_or_base_drift(self) -> None:
         for field, changed in {
             "title": "Changed title",

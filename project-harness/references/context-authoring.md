@@ -1,6 +1,6 @@
 # Context Authoring
 
-Execute this phase only after `project-harness` dispatches `role: context-authoring` from a current user's explicit invocation.
+Execute this phase only after `project-harness` dispatches `role: context-authoring` from a current user's explicit invocation. Run the selected role as the Context Authoring Phase Owner; the exact public role name remains `context-authoring`.
 
 Carry the optional pre-implementation durable-decision gate. Persist only one settled cross-task architecture or technology decision that another task must consume before the source product Pull Request can merge.
 
@@ -19,6 +19,9 @@ Carry the optional pre-implementation durable-decision gate. Persist only one se
 
 - Start only from an explicit invocation containing one finalized open Issue URL.
 - Use a clean session and treat the Issue as the decision source and delivery contract.
+- Apply the root Skill's fixed two-hop delegation topology. The Context Authoring Phase Owner may directly delegate narrow read-only work and each independent review round; every Worker and Reviewer must remain mutation-free, must not delegate further, and must return only to this Owner.
+- Keep the Context Authoring Phase Owner as the sole phase writer and sole producer of the persistent decision artifacts and phase hand-off.
+- Continue the same semantic round in the same Phase Owner after a Worker failure or Reviewer FAIL. Replace the Owner only when a bound authoritative input or semantic target changes, the Owner explicitly terminates, or its context cannot be recovered.
 - Treat the current exact role invocation as authority for the branch, commit, push, Draft PR, comments, and Ready-state mutations enumerated here. A prior hand-off or implicit route is not authority.
 - Write only one `docs/decisions/ADR-*.md` leaf on a dedicated branch based on `develop`.
 - Mark every pre-implementation decision `status: proposed`.
@@ -94,9 +97,9 @@ Do not use a closing keyword for the still-open product Issue.
 
 ## Require an independent Reviewer
 
-Bind the Draft decision PR Body digest, head SHA, base ref `develop`, and base SHA after independent read-back. Start a new clean, read-only Reviewer for each review round and provide only the source Issue tuple, exact gate evidence, decision PR tuple and diff, and matching existing ADRs.
+Bind the Draft decision PR Body digest, head SHA, base ref `develop`, and base SHA after independent read-back. The Context Authoring Phase Owner must directly start a new clean, read-only Reviewer for each review round and provide only the source Issue tuple, exact gate evidence, decision PR tuple and diff, and matching existing ADRs.
 
-Require `PASS` or blocking `FAIL` for the exact tuple. Check:
+Require the Reviewer to return only a structured, non-persistent `PASS` or blocking `FAIL` verdict for the exact tuple to the Context Authoring Phase Owner. Check:
 
 1. traceability to one finalized Issue and unchanged Body digest;
 2. satisfaction of all four pre-implementation gate conditions;
@@ -106,13 +109,13 @@ Require `PASS` or blocking `FAIL` for the exact tuple. Check:
 6. one authoritative destination without duplication or conflict;
 7. a decision-only diff limited to `docs/decisions/` and executable validation.
 
-Forbid edits, GitHub mutations, alternative designs, and non-blocking wording suggestions in the Reviewer. Require the verdict to remain bound to the supplied tuple and cited authoritative evidence. Fix blockers in the Authoring Agent, bind the new tuple, and start a new clean Reviewer.
+Forbid edits, GitHub mutations, further delegation, alternative designs, and non-blocking wording suggestions in the Reviewer. Require the verdict to remain bound to the supplied tuple and cited authoritative evidence. Fix blockers in the same Context Authoring Phase Owner, bind the new tuple, and directly start a new clean Reviewer.
 
 ## Mark the reviewed decision PR Ready
 
 After PASS:
 
-1. Add and independently verify an append-only PASS comment identifying the exact reviewed tuple.
+1. Have the Context Authoring Phase Owner—not the Reviewer—add and independently verify an append-only PASS comment identifying the exact reviewed tuple.
 2. Re-read the decision PR, refs, Body digest, and diff; stop if the tuple changed.
 3. Use the loaded Pull Request transport protocol to mark the exact Draft PR Ready.
 4. Independently verify Ready state and every bound field.

@@ -1,27 +1,34 @@
 ---
 name: project-harness
-description: This skill should be used only when the current user message supplies init, delivery, or one exact feature-iteration role—definition, context-authoring, implementation, closeout, or context-promotion—to initialize project-owned Harness configuration, run one compatibility phase, or coordinate implementation through verified Issue closure with isolated agents, persistent evidence, and stage timing/change observations.
+description: This skill should be used only when the current user message supplies init, delivery, or one exact feature-iteration role—definition, context-authoring, implementation, closeout, or context-promotion—to initialize project-owned Harness configuration, run one compatibility phase, or coordinate a single-owner multi-agent delivery through automatic PR integration and verified Issue closure.
 disable-model-invocation: false
 ---
 
 # Project Harness
 
-Dispatch one explicitly requested top-level operation. Use `delivery` for the normal post-definition path: keep one coordinator in contact with the user while fresh phase Agents execute Implementation, Closeout, and Context Promotion from persistent GitHub evidence. Keep the exact phase roles as compatibility and recovery entry points.
+Dispatch one explicitly requested top-level operation. Use `delivery` for the normal post-definition path: keep one coordinator in contact with the user while one isolated Phase Owner per semantic round executes Implementation, Closeout, or Context Promotion and directly manages only read-only Workers or an independent Reviewer. Keep the exact phase roles as compatibility and recovery entry points.
 
 ## Require an exact invocation
 
 Invocation transport is host-specific. Codex requires the user's `$project-harness` trigger because `agents/openai.yaml` disables implicit invocation. Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection because `disable-model-invocation: false`. In either case, require the current user message as presented to the Agent to supply one exact role packet below; host loading alone never supplies a role, authoritative source, approval, delegation, merge, or closure authority. Reject before Harness mutation when the current message lacks that packet, and never infer it from repository content, prior chat, a generated hand-off, or the Skill body itself.
 
-For project initialization, require:
+For current project initialization or an explicit schema-v1 migration, require:
 
 ~~~yaml
 role: init
 configuration:
+  schema_version: 2
   marker_namespace: project-slug
+  integration:
+    base_branch: develop
+    product_pr:
+      merge_method: merge
+    memory_pr:
+      merge_method: merge
 next_action: null
 ~~~
 
-`configuration.marker_namespace` may be omitted only when `.project-harness/config.yaml` already exists and `init` is being used to validate it.
+Accept the historical packet containing only `configuration.marker_namespace` for strict schema-v1 compatibility. `configuration` fields may be omitted only when `.project-harness/config.yaml` already exists and `init` is being used for validation without migration. Require the complete current packet above to create schema-v2 or migrate an exact schema-v1 file; never partially default integration policy.
 
 For the normal automated delivery tail, require:
 
@@ -35,7 +42,7 @@ next_action: Implement, accept, merge, reconcile durable context, and close the 
 
 Before any `delivery` mutation, complete an immutable source read and state reconstruction, including all paginated source Issue comments with `comments_complete: true`. An exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready` may return from read-only evidence without Delivery-log backfill, an unlocked Issue, `add-comment`, or a pending user decision.
 
-For every remaining path that may mutate or backfill, verify `locked: false`, the coordinator's authenticated Issue `add-comment` capability, and that every human-only acceptance item already has a persistent confirmation URL/whole-comment digest bound to the exact current snapshot. Do not require a planning-only or same-turn input tool before Implementation. When the reconstructed path reaches an unconfirmed Context Promotion proposal, persist and re-read the proposal, summarize its exact changes and evidence in the final response, end the current turn, and wait for a new explicit confirmation re-entry. The Context Promotion proposal remains `delivery`'s only live user interaction.
+For every remaining path that may mutate or backfill, verify `locked: false`, the coordinator's authenticated Issue `add-comment` capability, and that every human-only acceptance item already has a persistent confirmation URL/whole-comment digest bound to the exact current snapshot. Do not require a planning-only or same-turn input tool before Implementation. When the reconstructed path reaches an unconfirmed Context Promotion proposal, require the Phase Owner to persist it, independently re-read it in the coordinator, summarize its exact changes and evidence in the final response, end the current turn, and wait for a new explicit confirmation re-entry. The Context Promotion proposal remains `delivery`'s only live user interaction.
 
 For a Context Promotion decision after that summary, require a new explicit invocation. Prefix the ready-to-send packet with `$project-harness` in Codex or `/project-harness` in Claude Code. Use `role: delivery` for the coordinated path and `role: context-promotion` only for a standalone compatibility path:
 
@@ -87,18 +94,18 @@ Shared artifact contracts:
 | `init` | `references/init.md` | None | Exact project-owned marker namespace, or an existing valid Harness config | Created or read-back-verified `.project-harness/config.yaml` | `definition` or no further action | `init` after correcting a missing, invalid, or conflicting input |
 | `definition` | `references/definition.md` | Issue transport; Pull Request transport; Issue contract | Raw or changed requirement; optional explicitly targeted Issue | Independently reviewed and read-back-verified Issue | `context-authoring` or `delivery` | `definition` when the contract later changes |
 | `context-authoring` | `references/context-authoring.md` | Issue transport; Pull Request transport; Issue contract | Finalized Issue requiring the pre-implementation durable-decision gate | Verified existing decision source or Ready proposed-decision PR | `delivery` after the decision source is merged, or `external-review` | `definition`; `context-authoring` to resume blocked work or verify merge |
-| `delivery` | `references/delivery.md` | Issue transport; Pull Request transport; Delivery evidence contract; Delivery stage log contract | Finalized Issue; merged decision source when required | Accepted product PR and any approved project-memory PR merged into `develop`, required stage observations verified, terminal Context Promotion callback verified, and source Issue verified closed | No further action | `delivery` from persisted evidence; `definition` for a changed contract |
+| `delivery` | `references/delivery.md` | Issue transport; Pull Request transport; Delivery evidence contract; Delivery stage log contract | Finalized Issue; merged decision source when required | Accepted product PR and any approved project-memory PR automatically merged into `develop`, required stage observations verified, terminal Context Promotion callback verified, and source Issue verified closed | No further action | `delivery` from persisted evidence; `init` for merge-policy migration; `definition` for a changed contract |
 | `implementation` | `references/implementation.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract | Finalized Issue; merged decision source when required | Independently read-back-verified Draft product PR | `delivery` at Closeout, or `closeout` for legacy operation | `definition`; `implementation` to resume blocked work |
 | `closeout` | `references/closeout.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract | Finalized Issue and Draft product PR | Accepted Ready product PR plus project-memory promotion eligibility | `delivery` at the product merge gate, or `external-review` for legacy operation | `implementation`, `definition`, or `closeout` to resume blocked/repaired work |
 | `context-promotion` | `references/context-promotion.md` | Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract | Issue and eligible merged product PR | Confirmed `no-promotion` callback or Ready project-memory-only PR, plus the source Issue closure judgment | `delivery` for automatic integration, `external-review`, or no further action | `context-promotion` to resume blocked or legacy work; `definition` for a product-contract change |
 
 `init`, `definition`, `context-authoring`, and the three compatibility phase roles stop at their selected operation boundary. They return a minimal hand-off and never load another operation in the same Agent.
 
-For `delivery`, the coordinator loads `references/delivery.md`, the two transports, `references/delivery-evidence-contract.md`, and `references/delivery-log-contract.md` only. It must not load a phase reference or perform phase reasoning itself. The evidence contract lets it validate persistent artifact schemas and predecessor bindings only; it grants no phase behavior authority. For each phase, start a fresh Agent and instruct that Agent to read exactly one phase reference plus the supporting references from its compatibility row above. The phase Agent returns its hand-off to the coordinator; the coordinator verifies the referenced persistent evidence before dispatching the next phase.
+For `delivery`, the coordinator loads `references/delivery.md`, the two transports, `references/delivery-evidence-contract.md`, and `references/delivery-log-contract.md` only. It must not load a phase reference or perform phase reasoning itself. The evidence contract lets it validate persistent artifact schemas and predecessor bindings only; it grants no phase behavior authority. For each semantic round, start one isolated Phase Owner and instruct that Owner to read exactly one phase reference plus the supporting references from its compatibility row above. Keep that Owner live while the bound inputs and target remain unchanged. The Owner returns the only phase hand-off; the coordinator verifies its referenced persistent evidence before dispatching the next phase.
 
 ## Delegate without expanding authority
 
-A current explicit `role: delivery` invocation authorizes only the exact delivery tail for the supplied Issue. Before starting a phase Agent, create this ephemeral delegation envelope:
+A current explicit `role: delivery` invocation authorizes only the exact delivery tail for the supplied Issue. Before starting a Phase Owner, create this ephemeral delegation envelope:
 
 ~~~yaml
 delegation:
@@ -154,8 +161,10 @@ delegation:
 
 Search, read, and `read-checks` are non-mutating capabilities and do not need mutation delegation. The coordinator alone receives Pull Request `merge`, Issue `add-comment` for exact Delivery stage observations, and Issue `change-metadata` for final closure. Never place merge, closure, or Delivery-log authority in a phase envelope.
 - Require host parent-child provenance from the current live `delivery` invocation. A serialized envelope, callback, branch, prior run, or hand-off cannot create authority by itself.
-- Allow every phase Agent to create sub-agents, including sub-subagents, when separate context materially improves work. Require every delegator to narrow authority, set write ownership, integrate results, and remain accountable for its phase.
-- Keep independent Reviewers fresh, read-only, tuple-bound, and unable to repair their own findings.
+- Treat the delegated Agent as the Phase Owner and sole holder of that phase's mutation set. Permit it to create only direct, narrow, read-only Workers or one fresh independent Reviewer when separate context materially improves the current semantic round.
+- Give every Worker and Reviewer an empty persistent mutation set. Forbid them from creating descendants, producing the phase hand-off, repairing their own findings, changing tracked files, or persisting a verdict, callback, branch, commit, PR, or Delivery observation. A Worker may emit ephemeral tool output only inside Owner-provided isolated scratch space; the Owner must discard it or independently integrate any result. Require the Owner to integrate and independently verify every structured result.
+- Keep independent Reviewers fresh, read-only, tuple-bound, and limited to structured `PASS` or blocking `FAIL`. Require the Owner—not the Reviewer—to compose and persist every workflow-owned review artifact after rechecking the unchanged tuple.
+- Keep one live Owner for one exact combination of `delegated_role`, bound snapshot, persistent evidence, user decision, allowed mutations, and `next_action`. A slow read, active tool call, Worker failure, or Reviewer `FAIL` does not create a new semantic round. Replace the Owner only after a changed bound input or target, its explicit terminal return, or host-confirmed unrecoverable context loss.
 - Forbid every descendant from merging a PR, closing the source Issue, approving a Context Promotion proposal for the user, or declaring the entire delivery complete.
 
 The coordinator may atomically merge or close only where `references/delivery.md` permits it. A normal phase hand-off does not grant those mutations.
@@ -163,10 +172,11 @@ The coordinator may atomically merge or close only where `references/delivery.md
 ## Load project-owned configuration
 
 - Treat `.project-harness/config.yaml`, relative to the project root, as the sole source of project-specific Harness configuration. Keep it outside the Skill directory so Skill synchronization does not overwrite it.
-- Require `schema_version: 1` and one `marker_namespace` value. The namespace must be a lowercase kebab-case ASCII slug of 1–63 characters matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`.
-- Before any lifecycle operation, read and validate the config. If it is missing, invalid, unsupported, or ambiguous, fail closed and hand off to an explicit `role: init`; do not infer a namespace from the directory, repository name, remote URL, Issue, or prior callback.
+- Write schema-v2 for every new configuration. Require one `marker_namespace`, `integration.base_branch: develop`, and separate `integration.product_pr.merge_method` / `integration.memory_pr.merge_method` values from `merge`, `squash`, or `rebase`. The namespace must be a lowercase kebab-case ASCII slug of 1–63 characters matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`.
+- Strictly dual-read an existing schema-v1 file containing only `schema_version: 1` and `marker_namespace`. Treat `develop` as its historical base and resolve one merge method only when the authoritative repository capability reports exactly one available method. When multiple methods remain, stop before the first lifecycle mutation and hand off to explicit `role: init` schema-v2 migration.
+- Before any lifecycle operation, parse and validate the config with `scripts/config_guard.py`. If it is missing, invalid, unsupported, or ambiguous, fail closed and hand off to an explicit `role: init`; do not infer a namespace or merge policy from the directory, repository name, remote URL, Issue, prior callback, or enabled merge buttons.
 - Resolve every `${marker_namespace}` token in the selected reference to the exact configured value before searching, comparing, producing, or verifying a marker. Never persist the token itself.
-- Once a callback containing the namespace has been persisted, `init` must not rename it. A namespace change requires a separately approved compatibility migration with verified dual-read behavior.
+- Permit only an explicit schema-v1 to schema-v2 migration that preserves the exact namespace and supplies the complete integration policy. Once a callback containing the namespace has been persisted, `init` must not rename it.
 
 ## Enforce shared contracts
 
@@ -185,7 +195,8 @@ The coordinator may atomically merge or close only where `references/delivery.md
 - Use `develop` as the product and project-memory integration base. Reserve `main` for the repository's release/hotfix flow.
 - A current user message that explicitly invokes one exact compatibility phase supplies authority only for the mutations enumerated by that phase reference. It does not authorize merge or later phases.
 - A current explicit `role: delivery` invocation supplies the coordinator's full, Issue-scoped automation authority and supplies descendants only the mutations enumerated in their delegation envelopes.
-- Never infer a merge method. The `delivery` coordinator may merge only an exact accepted product PR or exact confirmed-and-reviewed project-memory PR, using a method established by authoritative repository policy and the loaded Pull Request transport. For a new merge mutation, require mergeability to be affirmatively established as mergeable; unknown is not success. An exact already-merged recovery instead requires verified merge provenance and does not require post-merge mergeability. Stop blocked when the applicable method, tuple, required checks, mergeability/provenance, or permission cannot be established.
+- Never infer a merge method from enabled repository buttons or ask the user to perform a normal Delivery merge. For schema-v2, require the `delivery` coordinator to use `integration.product_pr.merge_method` for the accepted product PR and `integration.memory_pr.merge_method` for the confirmed-and-reviewed project-memory PR. For schema-v1 compatibility, use the sole authoritatively available repository method for both. Before the first Delivery mutation, require the loaded transport to prove each selected method is currently available; otherwise return `role: init` for policy migration or blocked for unavailable capability.
+- Perform both permitted merges automatically in the current explicit `delivery` invocation. For a new merge mutation, require mergeability to be affirmatively established as mergeable; unknown is not success. For exact already-merged schema-v2 recovery, additionally require the actual method to equal the configured method; schema-v1 recovery retains its strict historical policy check. Stop blocked when the applicable method, tuple, required checks, mergeability/provenance, or permission cannot be established, but never present manual merge as the normal recovery action.
 - Do not open a user decision gate during Implementation or Closeout. If acceptance truly requires human-only evidence that is not already persisted and snapshot-bound, return blocked rather than creating a second interactive gate.
 - Require explicit source-bound user confirmation only for the exact Context Promotion proposal. After persisting and re-reading `awaiting-confirmation`, summarize the proposal and finish the current turn without writing `confirmed`, marking a memory PR Ready, merging, or closing. Continue only from a new exact `delivery` or standalone `context-promotion` invocation whose `user_decision` names that active proposal URL/whole-comment digest. Never infer approval from timeout, silence, a bare reply, an earlier invocation, or general delivery intent.
 - Under `delivery`, close the source Issue only after the exact accepted product PR is merged, the confirmed Context Promotion path is terminal, all callbacks are read-back verified, and closure-level stage-log coverage exists. After the Issue close mutation is independently read back, append the exact `issue-closed` observation without reopening the Issue, verify it remains closed/completed, and require completion-level coverage before returning completed. A current explicit standalone `context-promotion` follows its compatibility closure gate without Delivery observations.

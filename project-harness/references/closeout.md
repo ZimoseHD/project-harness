@@ -1,8 +1,8 @@
 # Closeout
 
-Execute this phase only after `project-harness` dispatches a standalone `role: closeout` or the current `delivery` coordinator delegates the Closeout phase under the root Skill's scoped envelope.
+Execute this phase only after `project-harness` dispatches a standalone `role: closeout` or the current `delivery` coordinator delegates the Closeout phase under the root Skill's scoped envelope. Run the selected role as the Closeout Phase Owner; the exact public and delegated role name remains `closeout`.
 
-Carry the Closeout phase as an independent acceptance authority. Complete final acceptance for one exact Issue and Pull Request snapshot without becoming a second Implementation Agent.
+Carry the Closeout phase as an independent acceptance authority. Complete final acceptance for one exact Issue and Pull Request snapshot without becoming a second Implementation Phase Owner.
 
 ## Contents
 
@@ -20,7 +20,10 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 ## Enforce the authority boundary
 
 - Start only from one Issue URL and one Draft PR URL supplied by either a current explicit Closeout invocation or a host-provenance-bound delegation from the current explicit `delivery` invocation.
-- Use a fresh isolated Agent context with no Implementation conversation history.
+- Use a fresh isolated Phase Owner context with no Implementation conversation history.
+- Apply the root Skill's fixed two-hop delegation topology. The Closeout Phase Owner may directly delegate narrow read-only verification and, when useful, one independent tuple-bound review; every Worker and Reviewer must remain mutation-free, must not delegate further, and must return only to this Owner.
+- Keep the Closeout Phase Owner as the sole phase writer and sole producer of the acceptance verdict, Issue callback, eligibility registration, Ready-state mutation, and phase hand-off.
+- Continue acceptance for the same bound snapshot in the same Phase Owner after a Worker failure or Reviewer FAIL. Replace the Owner only when a bound authoritative input or semantic target changes, the Owner explicitly terminates, or its context cannot be recovered.
 - Treat the Issue as the delivery contract and the PR as the implementation result and evidence carrier.
 - Independently inspect the diff and rerun applicable acceptance.
 - Treat the current user message's exact host-valid `role: closeout` packet under the root Skill's invocation-adapter contract as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
@@ -45,7 +48,7 @@ next_action: Independently accept or reject the Draft PR against the Issue.
 
 When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: closeout` and the Implementation phase's persistent evidence URLs and bound tuple.
 
-Read both sources and every supplied evidence URL completely. Do not rely on the previous Agent's summary, chat, local plan, or implicit memory.
+Read both sources and every supplied evidence URL completely. Do not rely on the previous Phase Owner's summary, chat, local plan, or implicit memory.
 
 ## Resolve and bind the acceptance snapshot
 
@@ -100,7 +103,7 @@ Also map the PR's `持久项目记忆实际影响` claims to the diff, tests, ci
 ## Verify independently
 
 - Inspect the complete diff and affected tests.
-- Delegate bounded read-only verification to sub-agents or sub-subagents only when separate context materially helps. Keep the Closeout Agent accountable for the complete matrix and verdict; no descendant may edit code, write the verdict, merge, close the Issue, or approve promotion.
+- Delegate bounded read-only verification only to direct Workers when separate context materially helps. Give each Worker an exact read set or acceptance-matrix slice and require evidence-bound results. Keep the Closeout Phase Owner accountable for the complete matrix and verdict; no Worker or Reviewer may edit code, write the verdict, mutate GitHub, delegate further, merge, close the Issue, or approve promotion.
 - Run every reproducible build, test, static check, smoke test, or acceptance command needed by the Issue and risk.
 - Treat Implementation's validation as evidence to confirm, not as a substitute for execution.
 - Record exact commands, results, and relevant environment facts.
@@ -140,7 +143,7 @@ For an implementation, test, behavior, or evidence defect:
 1. Record FAIL with exact blockers and return_stage Implementation.
 2. Keep the PR Draft or use authorized transport to convert it back to Draft.
 3. Return return-to-implementation with the Issue URL, Draft PR URL, acceptance comment URL, and `role: implementation`.
-4. When delegated, let the coordinator re-read the FAIL and start a fresh repair Implementation Agent automatically. A standalone caller receives the same persistent hand-off.
+4. When delegated, let the coordinator re-read the FAIL and start a fresh repair Implementation Phase Owner automatically. A standalone caller receives the same persistent hand-off.
 
 For a delivery-contract defect:
 
@@ -154,7 +157,7 @@ For an external, permission, environment, required-check-discovery, or human-con
 2. Preserve the Draft PR.
 3. Return blocked with the recovery condition.
 
-Do not impose an arbitrary retry limit. Every repaired head SHA enters a new fresh Closeout Agent and receives a new append-only record.
+Do not impose an arbitrary retry limit. Every repaired head SHA changes the bound input, enters a new fresh Closeout Phase Owner, and receives a new append-only record. A failed Worker or Reviewer against the unchanged snapshot does not by itself justify replacing the current Owner.
 
 ## Complete successful acceptance
 

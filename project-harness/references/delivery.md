@@ -2,14 +2,14 @@
 
 Execute this top-level operation only after `project-harness` dispatches a current user's explicit `role: delivery`.
 
-Coordinate one finalized Issue from Implementation through independent Closeout, exact product integration, user-confirmed Context Promotion, any required project-memory integration, and verified Issue closure. Keep each phase in a fresh Agent and make every transition recoverable from persistent GitHub evidence.
+Coordinate one finalized Issue from Implementation through independent Closeout, exact product integration, user-confirmed Context Promotion, any required project-memory integration, and verified Issue closure. Keep one isolated Phase Owner for each unchanged semantic round, automatically execute both configured PR integrations, and make every transition recoverable from persistent GitHub evidence.
 
 ## Contents
 
 - Enforce the coordinator boundary
 - Accept the delivery input
 - Reconstruct the persistent state
-- Dispatch bounded phase Agents
+- Dispatch bounded Phase Owners
 - Run the Implementation and Closeout loop
 - Merge the accepted product PR
 - Relay the Context Promotion confirmation
@@ -22,14 +22,15 @@ Coordinate one finalized Issue from Implementation through independent Closeout,
 
 ## Enforce the coordinator boundary
 
-- Keep one Delivery Coordinator accountable for dispatch, source re-read, transition validation, merge gates, the cross-turn proposal summary and explicit decision relay, Delivery stage observations, terminal reconciliation, and the final result.
+- Keep one Delivery Coordinator accountable for dispatch, source re-read, transition validation, automatic merge gates, the cross-turn proposal summary and explicit decision relay, Delivery stage observations, terminal reconciliation, and the final result.
 - Do not implement product code, repair a failed acceptance, issue an acceptance verdict, classify durable knowledge, edit project-memory files, or review a phase's own work in the coordinator.
-- Start a fresh phase Agent for every Implementation attempt, Closeout round, Context Promotion proposal revision, and terminal reconciliation. Supply only the scoped delegation envelope from the root Skill and persistent source URLs.
-- Let a phase Agent create sub-agents or sub-subagents under the shared narrowing and ownership rules. Never treat nested delegation as authority to cross a phase boundary.
+- Start one isolated Phase Owner for every Implementation, Closeout, Context Promotion proposal revision, or terminal-reconciliation semantic round. Define the round by the exact delegated role, bound snapshots/evidence, user decision, mutation set, and `next_action`.
+- Keep that Owner live while those bindings and target remain unchanged. Do not replace it because a read is slow, a tool is actively running, one direct Worker fails, or an independent Reviewer returns `FAIL`. Replace it only after a changed bound input or target, its explicit terminal return, or host-confirmed unrecoverable context loss.
+- Let the Owner create only direct read-only Workers or an independent Reviewer under the root Skill's fixed two-hop topology. The Owner remains the sole phase writer and hand-off producer; Workers and Reviewers cannot delegate further or cross a phase boundary.
 - Consume a phase result only after independently re-reading every referenced Issue, PR, comment, ref, digest, and state through the loaded transports.
 - Validate every Closeout and Context Promotion artifact against `references/delivery-evidence-contract.md`. Use that contract only for persistent schema, tuple/digest, predecessor, active-tip, and legacy dual-read checks; never use it to perform phase reasoning or produce a phase artifact.
 - Never ask the user to create a new session for a normal transition. The coordinator consumes the persistent hand-off and creates the next isolated Agent itself.
-- Never merge from a phase Agent. Perform the two permitted merge gates only in the coordinator through the loaded Pull Request transport.
+- Never merge from a Phase Owner, Worker, or Reviewer. Perform the two permitted merge gates automatically and only in the coordinator through the loaded Pull Request transport.
 - Never open a user decision gate outside Context Promotion. That gate is the only normal point where `delivery` ends a turn and waits for an explicit source-bound re-entry.
 - Write Delivery stage observations only from the coordinator, after independently verifying the result they summarize. Never delegate this audit mutation or consume a log as phase evidence.
 
@@ -59,16 +60,17 @@ For every remaining path that may mutate or backfill, complete this state-aware 
 
 1. Require the source Issue to report `locked: false` and the same authenticated Issue transport to expose the coordinator's `add-comment` capability needed for Delivery observations. Do not unlock an Issue.
 2. Inspect every acceptance item for visual, business, real-device, external-system, or other human-only evidence. Require each applicable item already to have a persistent explicit confirmation URL and whole-comment digest bound to the exact current acceptance snapshot. If no product snapshot exists yet, such a confirmation cannot be snapshot-bound.
+3. Parse `.project-harness/config.yaml` with `scripts/config_guard.py`. Bind the validated schema version, namespace, base, policy source, and resolved product/project-memory methods as the live integration-policy baseline. For schema-v2, require repository metadata to prove both configured methods are currently available. For schema-v1 compatibility, require the authoritative available-method set to be known and contain exactly one method, then bind it for both PR kinds.
 
-Return blocked before Implementation and before any mutation when an applicable preflight check fails. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction in `delivery` remains the Context Promotion confirmation gate. Do not require a planning-only or same-turn input tool; run Implementation and repository mutations in a code-capable mode.
+Return blocked before Implementation and before any mutation when an applicable preflight check fails. For schema-v1 with multiple methods, use `recovery_condition: merge-policy-migration-required` and hand off to exact `role: init` with the unchanged namespace, authoritative available-method set, and both unresolved product/project-memory policy choices; only the user's later explicit `init` packet may complete those fields. For schema-v2 whose configured method is unavailable, use `recovery_condition: configured-merge-method-unavailable`; never choose another enabled method or ask the user to merge manually. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction inside a mutable `delivery` remains the Context Promotion confirmation gate. Do not require a planning-only or same-turn input tool; run Implementation and repository mutations in a code-capable mode.
 
 Treat the explicit `delivery` invocation as authority, for this one Issue only, to:
 
 - delegate the phase mutations enumerated by Implementation, Closeout, and Context Promotion;
 - repair Implementation after a persisted Closeout FAIL;
-- merge the exact accepted product PR into `develop`;
+- merge the exact accepted product PR into `develop` automatically with the bound product merge method;
 - summarize one or more source-bound Context Promotion proposals, stop at each unconfirmed revision, and relay a later explicit decision re-entry;
-- merge the exact user-confirmed and independently reviewed project-memory PR into `develop`;
+- merge the exact user-confirmed and independently reviewed project-memory PR into `develop` automatically with the bound project-memory merge method;
 - append exact read-back-verified Delivery stage observations to the source Issue;
 - write terminal callbacks and close the source Issue after all terminal conditions hold.
 
@@ -94,28 +96,29 @@ Use this recovery matrix:
 | --- | --- |
 | No product PR, or any Draft product PR without a same-run Implementation hand-off already re-read and accepted by this coordinator | Dispatch Implementation to create, resume, or mechanically revalidate the Draft |
 | This coordinator has just accepted a verified Implementation hand-off for the exact unchanged Draft tuple, with no current acceptance verdict | Dispatch Closeout |
-| Current Closeout FAIL returning to Implementation | Dispatch a fresh repair Implementation Agent |
-| Valid PASS comment with any missing Issue callback, eligibility registration, or Ready mutation | Dispatch a fresh Closeout reconciler to complete the remaining idempotent steps |
+| Current Closeout FAIL returning to Implementation | Dispatch one repair Implementation Owner for the changed repair target |
+| Valid PASS comment with any missing Issue callback, eligibility registration, or Ready mutation | Dispatch one Closeout reconciliation Owner to complete the remaining idempotent steps |
 | Ready product PR whose accepted title/Body/head/base tuple drifted | Dispatch Closeout to convert it to Draft, append a fresh PASS/Issue callback and schema-v2 eligibility successor when the same head can be reaccepted, and otherwise select Implementation or Definition |
-| Accepted Ready product PR whose required checks fail because of the product change | Dispatch Closeout to persist the failed current verdict and convert to Draft, then dispatch a fresh repair Implementation Agent |
-| Accepted Ready product PR whose mergeability is false because of a repairable `develop` conflict | Dispatch Closeout to invalidate the stale PASS and convert to Draft, then dispatch a fresh Implementation Agent to rebase/repair; require a fresh Closeout round |
+| Accepted Ready product PR whose required checks fail because of the product change | Dispatch Closeout to persist the failed current verdict and convert to Draft, then dispatch one repair Implementation Owner for the changed target |
+| Accepted Ready product PR whose mergeability is false because of a repairable `develop` conflict | Dispatch Closeout to invalidate the stale PASS and convert to Draft, then dispatch one Implementation Owner to rebase/repair; require a new Closeout semantic round |
 | Accepted Ready product PR whose required-check knowledge or mergeability is unknown, checks are pending, or failure is external infrastructure | Wait/re-read when the host supports it; otherwise return blocked with the exact recovery condition |
 | Unmerged product PR with only an exact legacy eligibility registration | Dispatch Closeout to migrate through fresh current acceptance and one schema-v2 eligibility successor; do not merge the legacy lineage directly |
 | Current Closeout PASS, Issue callback, eligibility registration, and Ready product PR | Enter the product merge gate |
 | Current-format exact accepted product PR already merged into `develop`, with no terminal promotion state | Enter the product merge gate's already-merged `no-op` recovery; dispatch Context Promotion only after the transport verifies the complete current gate evidence, method, provenance, checks, and tuple |
 | Historically merged product PR with an exact legacy eligibility lineage | Use only the explicit read-only legacy integration exception: verify every field the historical producer promised plus current merged head/base identity, allowed actual method, merge provenance, and known successful head checks; then dispatch Context Promotion with computed legacy comment digests and require schema-v2 proposal/review/confirmation migration before any new memory merge or Issue close |
+| Exact proposal artifact and, for a write, unchanged Draft project-memory PR exist, but Reviewer PASS and `awaiting-confirmation` are absent | Dispatch one Context Promotion Owner with `next_action: Resume independent review for the unchanged persisted proposal`. Reuse the exact artifact and Draft tuple, run at most the missing review/write sequence for this round, and do not repeat classification, branch creation, commit, push, PR creation, or artifact persistence |
 | `awaiting-confirmation` promotion callback without a valid current `user_decision` | Re-read and summarize that exact proposal, then finish the turn with the source-bound re-entry packet |
 | `awaiting-confirmation` promotion callback plus a valid current `user_decision` bound to that sole active tip | Re-read every bound source and handle the exact approval, revision, or pause |
 | `confirmed` no-write proposal without terminal callback | Dispatch Context Promotion terminal reconciliation |
 | `confirmed` no-write proposal whose authority base or bound current-authority source drifted | Dispatch Context Promotion to invalidate the confirmation, rebuild/review the five-category proposal, and return to a new cross-turn confirmation summary |
 | `confirmed` project-memory proposal with a Draft PR | Dispatch Context Promotion to mark the exact reviewed tuple Ready and persist `memory-pr-ready` |
-| Confirmed, reviewed, Ready project-memory PR without a valid `memory-pr-ready` callback | Dispatch a fresh Context Promotion reconciler; do not merge |
+| Confirmed, reviewed, Ready project-memory PR without a valid `memory-pr-ready` callback | Dispatch one Context Promotion reconciliation Owner; do not merge |
 | Valid `memory-pr-ready` callback plus the unchanged confirmed/reviewed Ready project-memory PR | Enter the project-memory merge gate |
 | Ready project-memory PR whose required checks fail because of a permitted context file or validation defect | Dispatch Context Promotion to convert it to Draft, repair within promotion scope, persist a new artifact and fresh review, and return to a new cross-turn confirmation summary |
 | Ready project-memory PR whose confirmed title/Body/head/base tuple drifted, base advanced, or mergeability is false because of a repairable promotion-scope conflict | Dispatch Context Promotion to convert it to Draft, rebase/repair within scope, persist a new artifact and fresh review, and return to a new cross-turn confirmation summary; block when safe repair exceeds promotion authority |
 | Ready project-memory PR whose checks or mergeability are pending/unknown, or checks fail only because of external infrastructure | Wait/re-read when supported; otherwise return blocked without changing the confirmed tuple |
 | Exact unmerged legacy `memory-pr-ready` without a schema-v2 confirmation/migration callback and with no schema-v2 `awaiting-confirmation` tip | Dispatch Context Promotion to reconstruct and review it, persist the schema-v2 proposal, summarize it, and end the proposal turn; handle confirmation only in a later bound decision turn |
-| Current-format project-memory PR merged without a matching `memory-pr-merged` callback | Enter the project-memory merge gate's already-merged `no-op` recovery; dispatch a fresh Context Promotion reconciler only after the transport verifies the complete current gate evidence, method, provenance, checks, and tuple |
+| Current-format project-memory PR merged without a matching `memory-pr-merged` callback | Enter the project-memory merge gate's already-merged `no-op` recovery; dispatch one Context Promotion reconciliation Owner only after the transport verifies the complete current gate evidence, method, provenance, checks, and tuple |
 | Exact legacy terminal with an open Issue, no schema-v2 `legacy-reconciliation` confirmation, and no schema-v2 `awaiting-confirmation` tip | Dispatch Context Promotion to build and review the migration proposal, persist it, summarize it, and end the proposal turn; handle confirmation only in a later bound decision turn |
 | Schema-v2 terminal, or exact legacy terminal plus its schema-v2 migration confirmation, with the Issue still open | Enter the Issue closure gate |
 | Current-format terminal and independently verified closed Issue with completion-level schema-v1 Delivery observation coverage | Return completed as a verified no-op |
@@ -124,7 +127,7 @@ Use this recovery matrix:
 
 When any valid schema-v2 `awaiting-confirmation` tip exists, only the two `awaiting-confirmation` rows apply; legacy reconstruction rows cannot also match. When a Draft product PR has both incomplete implementation evidence and a stale Closeout FAIL, prefer Implementation. When a current PASS tuple differs from the current Issue Body, PR Body, head, base, or checks, invalidate it and dispatch the phase required by the changed field. A same-head reacceptance must append a schema-v2 eligibility successor bound to the former active registration URL/digest; consumers use only the sole non-superseded tip. Never select a state by comment recency alone; require its predecessor and tuple bindings.
 
-The coordinator never decides whether a Draft PR satisfies the Product PR contract. After a clean coordinator re-entry, route an unaccepted Draft through Implementation even when it looks complete; the phase Agent may return an exact no-op verification. Only a verified phase hand-off accepted in the current coordinator run permits direct Closeout dispatch.
+The coordinator never decides whether a Draft PR satisfies the Product PR contract. After a clean coordinator re-entry, route an unaccepted Draft through one Implementation Owner even when it looks complete; the Owner may return an exact no-op verification. Only a verified phase hand-off accepted in the current coordinator run permits direct Closeout dispatch.
 
 Every transition must already be reconstructible from GitHub:
 
@@ -139,9 +142,9 @@ Do not add another run marker or local coordinator checkpoint. Delivery observat
 
 If an authoritative success boundary is complete but its observation is absent, append a reconstructed observation with unknown duration before advancing. Never rerun the underlying phase, merge, confirmation, close, or callback merely to obtain timing. If its exact stage-delta baseline is no longer persistent, set that modification domain to `unknown` instead of substituting a different net diff.
 
-## Dispatch bounded phase Agents
+## Dispatch bounded Phase Owners
 
-Before every dispatch:
+Before every new semantic-round dispatch:
 
 1. Re-read the current sources.
 2. Capture the attempt's UTC display start and same-process monotonic start for later observation; do not persist a start checkpoint. For a confirmation re-entry, follow **Relay the Context Promotion confirmation** instead: do not start an overlapping phase-dispatch timer while its confirmation span is open.
@@ -151,6 +154,10 @@ Before every dispatch:
 6. Copy the delegated role's exact mutation set from the root Skill, remove any unnecessary mutation for this attempt, and never add another operation.
 7. Set `next_action` to one phase outcome, never the full remaining delivery.
 
+After dispatch, retain the same live Owner until it returns the typed result or the round identity changes. Use direct read-only Workers only for independent source gathering, inspection, test execution, or bounded verification. A Worker may run a tool that emits ephemeral output only in Owner-provided isolated scratch space; it must not change tracked files or persist workflow artifacts, and the Owner must independently reproduce or integrate any result that matters. Require every Worker to return a concise structured result to the Owner and forbid it from performing a persistent write or delegating. Treat an independent Reviewer as a separate direct read-only child whose `PASS` or blocking `FAIL` is input to the Owner, never a persisted workflow artifact by itself.
+
+Do not use fixed checkpoint silence as proof of failure. While the host reports an Agent or tool call active, wait or poll without creating another Owner. If a Worker fails, let the same Owner complete or replace only that narrow work unit. If a Reviewer returns `FAIL`, let the same Owner repair within its existing authority and create a fresh Reviewer for the changed tuple. A host-confirmed lost Owner context starts one recovery Owner from persistent state; it does not create a parallel Owner for the old round.
+
 Dispatch these roles:
 
 | Delegated role | Phase reference and supporting references | Permitted responsibility |
@@ -159,13 +166,13 @@ Dispatch these roles:
 | `closeout` | `references/closeout.md`; Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract | Independent acceptance, append-only verdict/callbacks, Draft/Ready state |
 | `context-promotion` | `references/context-promotion.md`; Issue transport; Pull Request transport; Issue contract; Product PR contract; Delivery evidence contract | Source-bound promotion proposal, project-memory-only branch/PR, independent review, proposal/terminal callbacks |
 
-Forbid a phase Agent from loading `references/delivery.md` or another phase reference. Forbid the coordinator from converting a phase's blocked, indeterminate, or mismatched result into success.
+Forbid a Phase Owner from loading `references/delivery.md` or another phase reference. Forbid every Worker or Reviewer from loading additional phase references. Forbid the coordinator from converting a phase's blocked, indeterminate, or mismatched result into success.
 
 ## Run the Implementation and Closeout loop
 
 For Implementation:
 
-1. Dispatch a fresh Implementation Agent with the Issue URL, any required merged decision source, and an existing Draft PR plus the latest FAIL comment when repairing.
+1. Dispatch one Implementation Owner with the Issue URL, any required merged decision source, and an existing Draft PR plus the latest FAIL comment when repairing.
 2. Require `verified-draft-pr`, a hand-off bound to the Draft PR tuple, all selected validation passing, and persistent evidence that no known acceptance item remains.
 3. Re-read the Issue, Draft PR, refs, Body digest, and branch before accepting the hand-off.
 4. Append and verify the Implementation attempt observation. For `verified-draft-pr`, require the `implementation-verified-draft` boundary and exact stage-delta change summary.
@@ -173,15 +180,15 @@ For Implementation:
 
 For Closeout:
 
-1. Dispatch a fresh Closeout Agent with the Issue URL and exact Draft PR URL.
+1. Dispatch one Closeout Owner with the Issue URL and exact Draft PR URL.
 2. Require independent verification and one read-back-verified append-only verdict, then validate that original comment under the loaded Delivery evidence contract.
-3. On `return-to-implementation`, require a persisted exact FAIL comment whose tuple and `return_stage: Implementation` validate under the shared evidence contract, and keep/restore Draft state before dispatching a fresh repair Implementation Agent.
+3. On `return-to-implementation`, require a persisted exact FAIL comment whose tuple and `return_stage: Implementation` validate under the shared evidence contract, and keep/restore Draft state before dispatching one repair Implementation Owner for the changed target.
 4. On `return-to-definition`, stop without editing the Issue and return the exact contract defect.
 5. On `blocked`, preserve all persistent state and stop.
 6. Append and verify one Closeout round observation for every persisted verdict result.
 7. On `accepted-ready-pr`, require the `closeout-accepted-ready` boundary, then re-read the exact PASS comment, Issue callback, active eligibility registration, Ready state, unchanged tuple, and current required-check evidence before entering the product merge gate.
 
-Do not impose an arbitrary retry count. A repaired head always receives a fresh Closeout Agent. Stop only for a genuine external, permission, environment, contract, target-ambiguity, or unrecoverable-state condition.
+Do not impose an arbitrary retry count or restart an unchanged Owner to simulate progress. A repaired head is a changed bound tuple and therefore receives a new Closeout Owner. Stop only for a genuine external, permission, environment, contract, target-ambiguity, or unrecoverable-state condition.
 
 Closeout must not open the user decision gate. When the Issue includes a genuinely human-only acceptance item, require already persisted confirmation bound to the exact snapshot. If it is absent, return blocked; do not reinterpret the `delivery` invocation as blanket acceptance.
 
@@ -192,24 +199,24 @@ Immediately before merge or current-format already-merged recovery:
 1. Re-read the Issue, product PR, refs, Body, PASS comment, Issue callback, eligibility registration, and checks.
 2. For a new merge, require an open Ready PR targeting `develop`, the accepted exact title and head ref/SHA, unchanged Issue and PR Body digests, unchanged base SHA, known and successful required checks, and affirmatively established `mergeable: true` or the selected transport's authoritative equivalent. Unknown mergeability is blocked. For an already-merged recovery, require non-Draft state, the same accepted tuple and evidence, currently known successful required checks for the exact head, actual integration into `develop`, verified merge provenance, and the actual merge method; do not require post-merge mergeability.
 3. Require the eligibility registration URL/digest pair to bind the same acceptance comment URL/digest, Issue callback URL/digest, and accepted tuple. Re-read each complete comment and compare its original whole-comment digest.
-4. Establish one exact merge method from authoritative repository rules. Stop blocked when multiple methods remain possible without an authoritative choice.
-5. Supply the exact baseline, protected fields, merge method, all three gate-evidence URL/digest pairs, and current `delivery` authority to the loaded Pull Request transport's `merge` operation. Use this same operation for current-format already-merged recovery and accept only its exact `no-op`.
+4. Immediately re-parse `.project-harness/config.yaml` and re-resolve repository capability through `scripts/config_guard.py`. Require its validated schema, namespace, base, policy source, and both resolved methods to equal the live preflight baseline, and require the bound product method to remain available. Treat semantic config drift, invalid config, or changed schema-v1 method uniqueness as blocked before merge.
+5. Supply the exact baseline, protected fields, bound product merge method, all three gate-evidence URL/digest pairs, and current `delivery` authority to the loaded Pull Request transport's `merge` operation. Use this same operation for current-format already-merged recovery and accept only its exact `no-op`; for schema-v2 recovery require the actual method to equal the configured product method.
 6. Independently read the PR back through the same transport.
 7. Require `merged: true`, base ref `develop`, the accepted title/Body/head tuple, the guarded base lineage, preserved non-base protected fields, and a non-null merge commit identity. Accept only `verified` or an exact-tuple `no-op`.
 
 If the tuple changes while the PR remains open, invalidate acceptance and dispatch the affected phase again. If an inconsistent tuple was merged, return blocked and do not manufacture eligibility or acceptance evidence.
 
-After verified product merge or exact current-format `no-op` recovery, append and verify the `product-merged` boundary observation with method, provenance, merge identity, and final product net-change evidence. Then re-read the Issue and dispatch a fresh Context Promotion Agent with only the Issue URL, merged product PR URL, eligibility registration URL/digest, acceptance comment URL/digest, Issue callback URL/digest, and bound source tuple.
+After verified product merge or exact current-format `no-op` recovery, append and verify the `product-merged` boundary observation with method, provenance, merge identity, and final product net-change evidence. Then re-read the Issue and dispatch one Context Promotion Owner with only the Issue URL, merged product PR URL, eligibility registration URL/digest, acceptance comment URL/digest, Issue callback URL/digest, and bound source tuple.
 
 The historical legacy integration row is a read-only compatibility exception because its producer did not persist the complete current tuple. It never authorizes or recovers a new merge mutation and must not be reported as a current-format transport `no-op`. Require the strict legacy source checks plus transport-verified current merge provenance, allowed actual method, merged head/base lineage, merge identity, and known successful head checks before entering the confirmation migration.
 
 ## Relay the Context Promotion confirmation
 
-Require Context Promotion to finish source verification, persist an exact proposal artifact, build any exact Draft project-memory PR, run validation, persist a fresh read-only Reviewer PASS for either a write or no-write proposal, and persist one read-back-verified schema-v2 `outcome: awaiting-confirmation` callback before presenting the decision summary.
+Require the Context Promotion Owner to finish source verification, persist an exact proposal artifact, build any exact Draft project-memory PR, run validation, obtain one fresh read-only Reviewer's structured PASS, compose and persist the corresponding Reviewer PASS artifact itself, and persist one read-back-verified schema-v2 `outcome: awaiting-confirmation` callback before presenting the decision summary.
 
 After re-reading that result, append and verify one `context-proposal-reviewed` boundary observation for the exact active revision. Record only proposal item identities/classifications/destinations and artifact URL/digest; never copy proposed prose.
 
-Independently re-read the state callback, exact proposal artifact, Reviewer evidence, eligibility registration URL/digest, bound `develop` authority base, and every referenced evidence/current-authority source with its recorded digest. If any digest or tuple changed, dispatch a fresh Context Promotion revision instead of displaying or approving the stale artifact. Present the user with all proposal details from the artifact:
+Independently re-read the state callback, exact proposal artifact, Reviewer evidence, eligibility registration URL/digest, bound `develop` authority base, and every referenced evidence/current-authority source with its recorded digest. If any digest or tuple changed, dispatch one new Context Promotion Owner for the changed revision instead of displaying or approving the stale artifact. Present the user with all proposal details from the artifact:
 
 - every candidate conclusion;
 - `add`, `update`, `supersede`, or `no_write` action;
@@ -234,8 +241,8 @@ On a later current explicit `role: delivery` confirmation re-entry:
 2. Reconstruct the workflow from persistent evidence before treating the current `user_decision` as authority. Require its proposal URL/digest to equal the sole active `awaiting-confirmation` whole comment.
 3. Re-read the source, eligibility registration, authority base, every artifact evidence/current-authority source, artifact, Reviewer PASS, state callback, and any memory PR tuple. Any source identity, proposal content, classification, destination, changed path, PR Body/head/base tuple, validation, or Reviewer drift invalidates the response.
 4. Map a proposal-bound top-level decision to its audit representation exactly: `approved` → the `context-confirmed` boundary's `decision: approved`, `revise` → attempt `response_kind: revision-requested`, and `pause` → attempt `response_kind: paused`. After the proposal URL/digest has independently matched the sole active tip, map a malformed decision/items shape, post-binding source drift, or out-of-authority request to attempt `response_kind: blocked`. If that proposal binding cannot be established, return blocked before any mutation and write no observation.
-5. On exact approval, populate the fresh delegation envelope's host-provenance-bound `user_decision` with `decision: approved`, dispatch a fresh Context Promotion Agent without starting an overlapping dispatch timer, persist a `confirmed` callback, and continue in that same confirmation-continuation invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result. Close the one measured confirmation span only after the dispatched result is independently verified and attach it only to `context-confirmed`; write any additional Ready or terminal boundary from that same live action as reconstructed with null elapsed time. `confirmed` alone is a recoverable interrupted state, not a successful phase result.
-6. On exact modification items under `decision: revise`, finish verification of the response, close the measured confirmation-response span, and best-effort persist its `revision-requested` attempt observation before any revision phase dispatch. Then populate a fresh delegation envelope with those items and start the standard non-overlapping phase-dispatch timer. Require the phase to validate them against the Issue, merged evidence, classification rules, and authority boundaries, produce a new Draft tuple or no-write assessment, run fresh validation and a fresh Reviewer, and persist a new `awaiting-confirmation` callback. Record that new proposal in its own measured `context-proposal-reviewed` boundary. Summarize the new revision and end the turn again.
+5. On exact approval, populate a new delegation envelope's host-provenance-bound `user_decision` with `decision: approved` and dispatch one Context Promotion Owner for that changed confirmation target without starting an overlapping dispatch timer. Require that Owner to persist and return the `confirmed` callback and applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result; the Coordinator only re-reads and validates them. Continue in the same confirmation-continuation invocation. Close the one measured confirmation span only after the dispatched result is independently verified and attach it only to `context-confirmed`; write any additional Ready or terminal boundary from that same live action as reconstructed with null elapsed time. `confirmed` alone is a recoverable interrupted state, not a successful phase result.
+6. On exact modification items under `decision: revise`, finish verification of the response, close the measured confirmation-response span, and best-effort persist its `revision-requested` attempt observation before any revision phase dispatch. Then populate a new delegation envelope with those items and start the standard non-overlapping phase-dispatch timer. Require one Owner to validate them against the Issue, merged evidence, classification rules, and authority boundaries, produce a new Draft tuple or no-write assessment, run validation, obtain a fresh Reviewer verdict, and persist a new `awaiting-confirmation` callback. Record that new proposal in its own measured `context-proposal-reviewed` boundary. Summarize the new revision and end the turn again.
 7. On pause (`decision: pause`), close the measured confirmation-response span before any other dispatch, best-effort persist only the `paused` attempt observation, leave the active proposal and any Draft memory PR unchanged, and return blocked with `recovery_condition: awaiting-context-promotion-decision`. For malformed decision/items, post-binding source drift, or an out-of-authority request whose proposal identity already matched the active tip, close the span and best-effort persist only the bound `blocked` attempt observation, then return blocked without confirmation or downstream workflow mutation. If no active tip exists or the proposal URL/digest is missing, mismatched, or unreadable, return blocked without any observation or other mutation. A source drift repair that remains within Context Promotion authority begins only after the response span is closed and uses a new phase-dispatch timer plus a new artifact, review, callback, summary, and later decision.
 8. On a requested change that alters the product contract or exceeds Context Promotion authority, return return-to-definition or blocked as the phase specifies. Do not treat free text as a hidden code or policy patch.
 
@@ -248,7 +255,7 @@ This split-turn exchange is the only interactive gate in `delivery`.
 For an approved no-write proposal:
 
 1. Require a read-back-verified `confirmed` callback bound to the current proposal.
-2. Require the approval phase to write and verify the exact `no-promotion` terminal callback. Dispatch a fresh Context Promotion reconciler only when recovery finds an interrupted, already persisted `confirmed` tip.
+2. Require the approval phase to write and verify the exact `no-promotion` terminal callback. Dispatch one Context Promotion reconciliation Owner only when recovery finds an interrupted, already persisted `confirmed` tip.
 3. Skip branch, commit, PR, and merge creation.
 4. Append and verify the `context-no-promotion-terminal` boundary observation.
 
@@ -257,11 +264,11 @@ For an approved write proposal:
 1. Require the `confirmed` callback, exact proposal artifact and Reviewer PASS, valid `memory-pr-ready` callback, and Context Promotion's verified Ready project-memory PR result. Bind and re-read the eligibility registration URL/digest and every predecessor URL/digest.
 2. Re-read the source Issue/product PR, authority sources, proposal artifact/state and confirmation callbacks, memory PR title, complete changed files/diff, head ref/SHA, base ref/SHA, Body digest, checks, and Ready or merged state.
 3. Require the diff to contain only the approved authority-layer paths and exact approved conclusions, the sorted changed-file/blob identities to match artifact/Reviewer/Ready evidence, and `authority_base_sha == memory_base_sha` for the active revision.
-4. Require `required_checks_known: true` and every required check successful. For a new merge, also require affirmatively established mergeability. If a failed check proves a context-file or validation defect within Context Promotion authority, dispatch a fresh Context Promotion repair round: convert the exact Ready PR to Draft, repair it, persist a new artifact, obtain a fresh Reviewer PASS, summarize the new proposal, and finish the turn for a later explicit decision. If checks are pending/unknown or failure is external infrastructure, wait/re-read when supported or return blocked without mutating the tuple. For an already-merged recovery, require non-Draft state, verified merge provenance, actual integration into `develop`, and the actual allowed merge method; do not require post-merge mergeability.
-5. Establish the repository-authoritative merge method.
-6. Call the loaded Pull Request transport's `merge` operation with the exact confirmed/reviewed tuple, protected fields, and proposal-artifact, confirmation, Reviewer PASS, and memory-pr-ready URL/digest pairs. Use this same operation for current-format already-merged recovery and accept only its exact `no-op`.
+4. Require `required_checks_known: true` and every required check successful. For a new merge, also require affirmatively established mergeability. If a failed check proves a context-file or validation defect within Context Promotion authority, dispatch one Context Promotion Owner for a changed repair round: convert the exact Ready PR to Draft, repair it, persist a new artifact, obtain a fresh Reviewer PASS, summarize the new proposal, and finish the turn for a later explicit decision. If checks are pending/unknown or failure is external infrastructure, wait/re-read when supported or return blocked without mutating the tuple. For an already-merged recovery, require non-Draft state, verified merge provenance, actual integration into `develop`, and the actual allowed merge method; do not require post-merge mergeability.
+5. Immediately re-parse `.project-harness/config.yaml` and re-resolve repository capability through `scripts/config_guard.py`. Require its validated schema, namespace, base, policy source, and both resolved methods to equal the live preflight baseline, and require the bound project-memory method to remain available. Treat semantic config drift, invalid config, or changed schema-v1 method uniqueness as blocked before merge.
+6. Call the loaded Pull Request transport's `merge` operation with the bound project-memory method, exact confirmed/reviewed tuple, protected fields, and proposal-artifact, confirmation, Reviewer PASS, and memory-pr-ready URL/digest pairs. Use this same operation for current-format already-merged recovery and accept only its exact `no-op`; for schema-v2 recovery require the actual method to equal the configured project-memory method.
 7. Independently verify merge into `develop`, unchanged title/head/Body/paths and guarded base lineage, and a non-null merge commit identity.
-8. Dispatch a fresh Context Promotion reconciler to append and verify the exact `memory-pr-merged` callback bound to the eligibility registration, proposal, confirmation, project-memory PR, Reviewer PASS, and merge identity.
+8. Dispatch one Context Promotion reconciliation Owner to append and verify the exact `memory-pr-merged` callback bound to the eligibility registration, proposal, confirmation, project-memory PR, Reviewer PASS, and merge identity.
 9. Append and verify `memory-pr-merged` after the exact merge/no-op recovery, then append and verify `context-memory-terminal` after the reconciler callback. Record the measured span on only the action that owned it; do not duplicate elapsed time across both observations.
 
 Never merge a Draft, unconfirmed, unreviewed, changed, check-failing, wrong-base, ambiguous, or unrelated project-memory PR.
@@ -272,10 +279,10 @@ After Context Promotion marks an approved project-memory PR Ready and persists i
 
 Follow `references/delivery-log-contract.md` as the only observation schema and aggregation source.
 
-For every bounded phase Agent attempt, merge gate, confirmation round, reconciliation, and finalization gate:
+For every bounded Phase Owner attempt, merge gate, confirmation round, reconciliation, and finalization gate:
 
 1. Accept the underlying result only from original authoritative evidence.
-2. Build one boundary observation for a successful durable boundary or one attempt observation for another persisted outcome. Give each live execution one UUIDv4 `attempt_id`; reuse it only for exact ambiguous-write recovery. Leave it null for a reconstructed/unknown-timing boundary.
+2. Build one boundary observation for a successful durable boundary or one attempt observation for another persisted outcome. Give each live semantic-round execution one UUIDv4 `attempt_id`; reuse it only while the same Owner continues that round or for exact ambiguous-write recovery. A re-review or narrow Worker replacement inside the unchanged round does not create another Owner attempt. Leave it null for a reconstructed/unknown-timing boundary.
 3. Use `scripts/delivery_log.py` to calculate `transition_key`, then require `validate_new_observation` to return no errors before every new write. Use `validate_observation` only to dual-read existing/historical records and to evaluate coverage.
 4. Read every source Issue comment page and require `comments_complete: true`.
 5. Compare trusted exact candidates by normalized whole-comment digest and transition key.
@@ -397,12 +404,12 @@ validation: []
 reason: null
 recovery_condition: null
 handoff:
-  role: definition | delivery | null
+  role: init | definition | delivery | null
   authoritative_sources: []
   next_action: null
 ~~~
 
-Return `completed` only with `issue_closure: closed`, `issue_state_verified: true`, and either current `coverage_level: completion` or the exact first-read-closed compatibility no-op exception with no trusted `finalization-ready`. For return-to-definition, preserve delivery artifacts and identify the exact changed or missing contract item. For blocked, set hand-off to `delivery` only when a later explicit re-entry can resume safely from the reported persistent state; `closed-but-log-pending` is such a recovery condition and never authorizes reopening.
+Return `completed` only with `issue_closure: closed`, `issue_state_verified: true`, and either current `coverage_level: completion` or the exact first-read-closed compatibility no-op exception with no trusted `finalization-ready`. For return-to-definition, preserve delivery artifacts and identify the exact changed or missing contract item. For `merge-policy-migration-required`, return `handoff.role: init`, the unchanged namespace, the complete authoritative available-method set, and the schema-v2 required-field checklist; identify both merge-method fields as unresolved user choices, do not guess or serialize placeholders as a valid invocation packet, and perform no Delivery mutation. For other blocked results, set hand-off to `delivery` only when a later explicit re-entry can resume safely from the reported persistent state; `closed-but-log-pending` is such a recovery condition and never authorizes reopening.
 
 Treat `recovery_condition: awaiting-context-promotion-decision` as the normal split-turn confirmation pause, not a phase failure. Require `promotion_proposal_url` / `promotion_proposal_sha256` and the complete final summary/re-entry packet before returning it. A later invocation must still satisfy the normal blocked-result re-entry rules and independently re-read the active proposal.
 
@@ -413,6 +420,8 @@ Populate `stage_logs` only from complete paginated reads and exact observation b
 ## Preserve compatibility
 
 - Keep `implementation`, `closeout`, and `context-promotion` callable as exact standalone phase roles. They retain their phase-scoped mutation authority and stop before merge.
+- Treat Phase Owner as an execution ownership term, not a new public role. Keep exact role names and delegation schema-v1 unchanged. Preserve schema-v1 project configs through strict dual-read and require explicit namespace-preserving `init` migration before a multi-method repository can enter mutable Delivery work.
+- Preserve the fixed two-hop delegation topology across hosts: one Coordinator, one Owner per semantic round, direct read-only Workers/Reviewer, and no descendant delegation. Do not reinterpret a timeout or narrow child failure as a new semantic round.
 - Keep all existing Issue and Product PR Body headings and digest rules unchanged.
 - Keep the three existing marker names unchanged.
 - Keep Delivery observations unmarked, audit-only, and additive. An exact standalone or legacy lineage already closed in the first immutable read with no trusted `finalization-ready` remains a completed compatibility no-op without backfill. Open lineages backfill required successful boundaries with unknown timing before finalization. A current Delivery-log schema-v1 lineage whose Issue closed after a trusted finalization but before `issue-closed` remains closed and reconstructs the missing observation chain only.

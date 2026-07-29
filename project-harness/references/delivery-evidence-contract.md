@@ -14,6 +14,7 @@ This file is the single authority for those artifacts' marker forms, required se
 - Require the Issue and Pull Request transports to return the same verified authenticated actor record for the operation. Establish its `mutation_author_login` as the trusted workflow author; a marker or arbitrary matching comment cannot establish trust.
 - For a current-format lineage, require the Closeout PASS, Issue callback, schema-v2 eligibility registration, and every schema-v2 promotion callback's transport-returned author login to equal the trusted workflow author. Apply only the explicit legacy migration rules below when historical authorship differs.
 - A phase result or hand-off is only a search hint. A consumer must fetch and validate the original artifact under this contract before relying on it.
+- Treat each Context Promotion artifact named **Reviewer PASS** as persistent evidence of an independent Reviewer's returned, tuple-bound read-only verdict. The Reviewer never writes that GitHub comment: the Context Promotion Phase Owner is its producer, composes it from the returned verdict and exact independently read tuple, persists it through the loaded Pull Request transport, and verifies the read-back. This ownership clarification does not change any artifact field, author rule, digest, predecessor, or schema below.
 
 ## Persist Closeout evidence
 
@@ -199,7 +200,7 @@ For no-write, require all five durable categories with explicit category-specifi
 
 ### Reviewer PASS for no-write
 
-Write one top-level source product-PR evidence comment without a workflow marker:
+After the independent Reviewer returns a tuple-bound read-only PASS, have the Context Promotion Phase Owner write one top-level source product-PR evidence comment without a workflow marker:
 
 ~~~yaml
 review_kind: context-promotion-no-write
@@ -220,7 +221,7 @@ The source tuple and eligibility pair must equal the artifact, and the proposal 
 
 ### Reviewer PASS for a write
 
-Write one append-only Draft project-memory-PR comment:
+After the independent Reviewer returns a tuple-bound read-only PASS, have the Context Promotion Phase Owner write one append-only Draft project-memory-PR comment:
 
 ~~~yaml
 review_kind: context-promotion-write

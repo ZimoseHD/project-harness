@@ -65,6 +65,7 @@ class OrchestrationContractTests(ProtocolAssertions):
         cls.delivery = read_text("references/delivery.md")
         cls.definition = read_text("references/definition.md")
         cls.context_authoring = read_text("references/context-authoring.md")
+        cls.init = read_text("references/init.md")
         cls.implementation = read_text("references/implementation.md")
         cls.closeout = read_text("references/closeout.md")
         cls.promotion = read_text("references/context-promotion.md")
@@ -111,11 +112,14 @@ class OrchestrationContractTests(ProtocolAssertions):
             (
                 "role: delivery",
                 "code-capable mode",
-                "Implementation, Closeout, Context Promotion",
+                "one Phase Owner per semantic round",
+                "direct read-only Workers and Reviewers",
+                "automatic configured product and memory PR merges",
                 "summarize the exact proposal and finish the turn",
                 "explicit source-bound re-entry",
-                "persistent stage timing/change observations",
+                "persistent stage observations",
                 "and Issue closure",
+                "role: init for schema-v2 project integration policy",
                 "compatibility or recovery",
                 "allow_implicit_invocation: false",
             ),
@@ -362,7 +366,8 @@ class OrchestrationContractTests(ProtocolAssertions):
             (
                 "top-level source Issue comment",
                 "Do not add a `${marker_namespace}` marker",
-                "Forbid phase Agents, sub-agents, sub-subagents, and Reviewers",
+                "Forbid Phase Owners, their direct read-only Workers, and independent Reviewers from writing Delivery observations",
+                "Only the Delivery Coordinator owns this audit mutation",
                 "Never let an observation authorize phase dispatch, PASS, Context Promotion confirmation, PR merge, Issue closure, or a durable-memory update",
                 "audit/compliance defect only",
             ),
@@ -531,13 +536,15 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             persistence,
             (
-                "For every bounded phase Agent attempt, merge gate, confirmation round, reconciliation, and finalization gate",
+                "For every bounded Phase Owner attempt, merge gate, confirmation round, reconciliation, and finalization gate",
                 "scripts/delivery_log.py",
                 "comments_complete: true",
                 "coordinator's verified mutation-author identity",
                 "duplicate observations share one transition key",
                 "timing_quality: reconstructed",
                 "UUIDv4 `attempt_id`",
+                "same Owner continues that round",
+                "A re-review or narrow Worker replacement inside the unchanged round does not create another Owner attempt",
             ),
             source="Delivery observation persistence",
         )
@@ -622,7 +629,7 @@ class OrchestrationContractTests(ProtocolAssertions):
             authority,
             (
                 "current `delivery` coordinator",
-                "Never accept such a payload from a phase Agent, descendant, standalone compatibility role",
+                "Never accept such a payload from a Phase Owner, Worker, Reviewer, standalone compatibility role",
                 "does not decide whether a stage completed or whether log coverage is sufficient",
                 "stage observation",
                 "still-closed Issue",
@@ -653,21 +660,25 @@ class OrchestrationContractTests(ProtocolAssertions):
             source="Context Promotion log exclusion",
         )
 
-    def test_coordinator_consumes_persistent_handoffs_with_fresh_agents(self) -> None:
+    def test_coordinator_reuses_one_owner_per_semantic_round(self) -> None:
         boundary = markdown_section(self.delivery, "Enforce the coordinator boundary")
         recovery = markdown_section(self.delivery, "Reconstruct the persistent state")
-        dispatch = markdown_section(self.delivery, "Dispatch bounded phase Agents")
+        dispatch = markdown_section(self.delivery, "Dispatch bounded Phase Owners")
 
         self.assertContainsAll(
             boundary,
             (
                 "one Delivery Coordinator",
-                "fresh phase Agent for every Implementation attempt, Closeout round, Context Promotion proposal revision, and terminal reconciliation",
-                "sub-agents or sub-subagents",
+                "one isolated Phase Owner for every Implementation, Closeout, Context Promotion proposal revision, or terminal-reconciliation semantic round",
+                "Keep that Owner live while those bindings and target remain unchanged",
+                "Do not replace it because a read is slow, a tool is actively running, one direct Worker fails, or an independent Reviewer returns `FAIL`",
+                "only direct read-only Workers or an independent Reviewer",
+                "sole phase writer and hand-off producer",
+                "Workers and Reviewers cannot delegate further",
                 "independently re-reading every referenced Issue, PR, comment, ref, digest, and state",
                 "Never ask the user to create a new session for a normal transition",
                 "coordinator consumes the persistent hand-off",
-                "two permitted merge gates only in the coordinator",
+                "Perform the two permitted merge gates automatically and only in the coordinator",
                 "Never open a user decision gate outside Context Promotion",
                 "ends a turn and waits for an explicit source-bound re-entry",
             ),
@@ -687,6 +698,9 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "legacy reconstruction rows cannot also match",
                 "with no schema-v2 `awaiting-confirmation` tip",
                 "handle confirmation only in a later bound decision turn",
+                "Exact proposal artifact and, for a write, unchanged Draft project-memory PR exist",
+                "Resume independent review for the unchanged persisted proposal",
+                "do not repeat classification, branch creation, commit, push, PR creation, or artifact persistence",
             ),
             source="delivery recovery contract",
         )
@@ -698,7 +712,10 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "| `context-promotion` |",
                 "persistent evidence URLs",
                 "Permitted responsibility",
-                "Forbid a phase Agent from loading `references/delivery.md` or another phase reference",
+                "retain the same live Owner until it returns the typed result or the round identity changes",
+                "Do not use fixed checkpoint silence as proof of failure",
+                "Forbid a Phase Owner from loading `references/delivery.md` or another phase reference",
+                "Forbid every Worker or Reviewer from loading additional phase references",
             ),
             source="delivery phase dispatch",
         )
@@ -715,7 +732,7 @@ class OrchestrationContractTests(ProtocolAssertions):
             with self.subTest(legacy_session_phrase=phrase):
                 self.assertNotIn(phrase, combined)
 
-    def test_nested_delegation_is_allowed_without_expanding_authority(self) -> None:
+    def test_fixed_two_hop_delegation_preserves_single_owner_authority(self) -> None:
         delegation = markdown_section(self.skill, "Delegate without expanding authority")
         self.assertContainsAll(
             delegation,
@@ -729,11 +746,16 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "issue_transport: []",
                 "pull_request_transport: []",
                 "host parent-child provenance",
-                "sub-agents, including sub-subagents",
-                "narrow authority",
-                "set write ownership",
-                "integrate results",
-                "remain accountable for its phase",
+                "Phase Owner and sole holder of that phase's mutation set",
+                "only direct, narrow, read-only Workers or one fresh independent Reviewer",
+                "Give every Worker and Reviewer an empty persistent mutation set",
+                "Forbid them from creating descendants",
+                "changing tracked files",
+                "Owner-provided isolated scratch space",
+                "Require the Owner to integrate and independently verify every structured result",
+                "Owner—not the Reviewer—to compose and persist every workflow-owned review artifact",
+                "Keep one live Owner for one exact combination",
+                "A slow read, active tool call, Worker failure, or Reviewer `FAIL` does not create a new semantic round",
                 "Forbid every descendant from merging a PR, closing the source Issue, approving a Context Promotion proposal for the user",
             ),
             source="root delegation envelope",
@@ -743,9 +765,12 @@ class OrchestrationContractTests(ProtocolAssertions):
             self.implementation,
             (
                 "host-provenance-bound delegation",
-                "sub-agents or sub-subagents",
-                "Narrow every nested delegation",
-                "Only the Primary Implementation Agent may return the verified phase hand-off",
+                "fixed two-hop delegation topology",
+                "Implementation Phase Owner may directly delegate narrow read-only exploration, research, and verification",
+                "sole writer and sole owner of the branch",
+                "Do not use parallel writers",
+                "Forbid source or durable-artifact writes and forbid further delegation",
+                "Only the Implementation Phase Owner may return the verified phase hand-off",
             ),
             source="Implementation delegation",
         )
@@ -753,9 +778,12 @@ class OrchestrationContractTests(ProtocolAssertions):
             self.closeout,
             (
                 "host-provenance-bound delegation",
-                "sub-agents or sub-subagents",
-                "Keep the Closeout Agent accountable",
-                "no descendant may edit code, write the verdict, merge, close the Issue, or approve promotion",
+                "fixed two-hop delegation topology",
+                "Closeout Phase Owner may directly delegate narrow read-only verification",
+                "sole phase writer and sole producer of the acceptance verdict",
+                "every Worker and Reviewer must remain mutation-free",
+                "must not delegate further",
+                "no Worker or Reviewer may edit code, write the verdict, mutate GitHub, delegate further, merge, close the Issue, or approve promotion",
             ),
             source="Closeout delegation",
         )
@@ -763,10 +791,50 @@ class OrchestrationContractTests(ProtocolAssertions):
             self.promotion,
             (
                 "host-provenance-bound delegation",
+                "fixed two-hop delegation topology",
+                "Context Promotion Phase Owner may directly delegate narrow read-only evidence, authority, and validation work",
+                "sole phase writer and sole producer of proposal artifacts, Reviewer PASS evidence",
+                "every Worker and Reviewer must remain mutation-free",
+                "must not delegate further",
                 "the coordinator retains both PR merge operations and final Issue closure",
                 "never merge a PR, and never approve a proposal on the user's behalf",
             ),
             source="Context Promotion delegation",
+        )
+
+        combined = "\n".join(
+            (delegation, self.implementation, self.closeout, self.promotion)
+        )
+        self.assertIn("fixed two-hop topology", self.delivery)
+        self.assertNotIn("sub-subagent", combined)
+        self.assertNotIn("Primary Implementation Agent", combined)
+
+    def test_reviewer_returns_verdict_and_promotion_owner_persists_pass(self) -> None:
+        review = markdown_section(self.promotion, "Require independent review")
+        evidence_intro = self.evidence
+
+        self.assertContainsAll(
+            review,
+            (
+                "structured, non-persistent PASS or blocking FAIL verdict",
+                "Forbid edits, GitHub mutations, further delegation",
+                "return its tuple-bound verdict only to the Context Promotion Phase Owner",
+                "Reviewer must never persist its own PASS comment or callback",
+                "Fix blockers in the same Owner",
+                "Context Promotion Phase Owner composes the exact **Reviewer PASS for no-write** artifact",
+                "Context Promotion Phase Owner composes the exact **Reviewer PASS for a write** artifact",
+            ),
+            source="read-only Reviewer and Owner-owned PASS",
+        )
+        self.assertContainsAll(
+            evidence_intro,
+            (
+                "persistent evidence of an independent Reviewer's returned, tuple-bound read-only verdict",
+                "The Reviewer never writes that GitHub comment",
+                "Context Promotion Phase Owner is its producer",
+                "persists it through the loaded Pull Request transport",
+            ),
+            source="Reviewer PASS producer ownership",
         )
 
     def test_delegated_write_authority_is_consistent_across_transports(self) -> None:
@@ -778,7 +846,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "mutation whitelist includes it",
                 "current `delivery` coordinator",
                 "current explicit standalone `role: context-promotion`",
-                "Never accept final closure from a phase Agent delegated by `delivery`",
+                "Never accept final closure from a Phase Owner delegated by `delivery`, a Worker, a Reviewer, or any other descendant",
                 "serialized delegation envelope",
                 "prior hand-off",
             ),
@@ -791,7 +859,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "host-provenance-bound delegation",
                 "mutation whitelist includes it",
                 "Allow `merge` only to the current `delivery` coordinator",
-                "never accept it from a phase Agent or descendant",
+                "never accept it from a Phase Owner, Worker, Reviewer, or other descendant",
                 "serialized delegation envelope",
                 "prior hand-off",
             ),
@@ -807,6 +875,128 @@ class OrchestrationContractTests(ProtocolAssertions):
                 self.assertIn("current explicit `delivery` invocation", phase)
                 self.assertIn("delegation", phase)
 
+    def test_config_v2_merge_policy_and_v1_dual_read_preflight_are_explicit(
+        self,
+    ) -> None:
+        init_input = markdown_section(
+            self.init,
+            "Accept only the initialization packet",
+        )
+        init_v2 = markdown_section(self.init, "Write schema version 2")
+        init_v1 = markdown_section(self.init, "Dual-read schema version 1")
+        init_lifecycle = markdown_section(
+            self.init,
+            "Create or verify idempotently",
+        )
+        delivery_input = markdown_section(self.delivery, "Accept the delivery input")
+        root_config = markdown_section(self.skill, "Load project-owned configuration")
+        root_policy = markdown_section(self.skill, "Bind repository policy and mutations")
+
+        for source, section in (
+            ("init packet", init_input),
+            ("schema-v2 config", init_v2),
+        ):
+            self.assertContainsAll(
+                section,
+                (
+                    "schema_version: 2",
+                    "marker_namespace: project-slug",
+                    "integration:",
+                    "base_branch: develop",
+                    "product_pr:",
+                    "memory_pr:",
+                    "merge_method: merge",
+                ),
+                source=source,
+            )
+        self.assertContainsAll(
+            init_v2,
+            (
+                "each `merge_method` to equal exactly `merge`, `squash`, or `rebase`",
+                "Product and project-memory methods may differ",
+                "Do not infer or normalize any value",
+                "scripts/config_guard.py",
+                "--migrate-v1",
+                "--product-method",
+                "--memory-method",
+                "outcome: migration-rendered",
+                "`rendered_config`",
+            ),
+            source="schema-v2 policy",
+        )
+        self.assertContainsAll(
+            init_v1,
+            (
+                "schema_version: 1",
+                "Reject extra or duplicate keys",
+                "reports exactly one available method",
+                "stop before its first mutation",
+                "Never create a new schema-v1 file",
+                "never silently add integration defaults",
+            ),
+            source="schema-v1 strict dual-read",
+        )
+        self.assertContainsAll(
+            init_lifecycle,
+            (
+                "valid schema-v1 config",
+                "complete schema-v2 policy with the exact same namespace",
+                "require the baseline to remain unchanged",
+                "Render one canonical schema-v2 replacement",
+                "Never rename an established namespace",
+            ),
+            source="namespace-preserving v1 migration",
+        )
+        self.assertContainsAll(
+            root_config,
+            (
+                "Write schema-v2 for every new configuration",
+                "Strictly dual-read an existing schema-v1 file",
+                "reports exactly one available method",
+                "stop before the first lifecycle mutation",
+                "hand off to explicit `role: init` schema-v2 migration",
+                "preserves the exact namespace",
+            ),
+            source="root config compatibility",
+        )
+        self.assertContainsAll(
+            delivery_input,
+            (
+                "Before the first mutation",
+                "Parse `.project-harness/config.yaml` with `scripts/config_guard.py`",
+                "Bind the validated schema version, namespace, base, policy source, and resolved product/project-memory methods",
+                "For schema-v2",
+                "For schema-v1 compatibility",
+                "contain exactly one method",
+                "Return blocked before Implementation and before any mutation",
+                "recovery_condition: merge-policy-migration-required",
+                "hand off to exact `role: init`",
+                "unchanged namespace",
+                "authoritative available-method set",
+                "both unresolved product/project-memory policy choices",
+                "only the user's later explicit `init` packet may complete those fields",
+                "recovery_condition: configured-merge-method-unavailable",
+                "never choose another enabled method or ask the user to merge manually",
+                "merge the exact accepted product PR into `develop` automatically",
+                "merge the exact user-confirmed and independently reviewed project-memory PR into `develop` automatically",
+            ),
+            source="Delivery immutable merge-policy preflight",
+        )
+        self.assertContainsAll(
+            root_policy,
+            (
+                "Never infer a merge method from enabled repository buttons",
+                "ask the user to perform a normal Delivery merge",
+                "integration.product_pr.merge_method",
+                "integration.memory_pr.merge_method",
+                "sole authoritatively available repository method",
+                "Before the first Delivery mutation",
+                "Perform both permitted merges automatically",
+                "never present manual merge as the normal recovery action",
+            ),
+            source="automatic configured merges",
+        )
+
     def test_delivery_has_two_exact_guarded_merge_gates(self) -> None:
         merge_headings = re.findall(r"(?m)^## (Merge .+)$", self.delivery)
         self.assertEqual(
@@ -816,14 +1006,29 @@ class OrchestrationContractTests(ProtocolAssertions):
 
         product_merge = markdown_section(self.delivery, "Merge the accepted product PR")
         memory_merge = markdown_section(self.delivery, "Merge approved project memory")
-        for name, section in (
-            ("product merge gate", product_merge),
-            ("project-memory merge gate", memory_merge),
+        for name, section, bound_method in (
+            (
+                "product merge gate",
+                product_merge,
+                "bound product method",
+            ),
+            (
+                "project-memory merge gate",
+                memory_merge,
+                "bound project-memory method",
+            ),
         ):
             self.assertContainsAll(
                 section,
                 (
                     "merge method",
+                    bound_method,
+                    "Immediately re-parse `.project-harness/config.yaml`",
+                    "re-resolve repository capability through `scripts/config_guard.py`",
+                    "both resolved methods to equal the live preflight baseline",
+                    "remain available",
+                    "semantic config drift",
+                    "changed schema-v1 method uniqueness",
                     "loaded Pull Request transport",
                     "`merge` operation",
                     "Independently",
@@ -841,6 +1046,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "operation: search | read | create-draft | replace-content | add-comment | replace-comment | read-checks | mark-ready | convert-to-draft | merge",
                 "merge_commit_sha: null",
                 "merge_method: null",
+                "available_merge_methods: []",
+                "merge_methods_known: null",
             ),
             source="Pull Request merge surface",
         )
@@ -851,6 +1058,11 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "base ref `develop`",
                 "required_checks_known: true",
                 "`mergeable: true`",
+                "schema-v2 uses the configured product or project-memory method",
+                "schema-v1 compatibility uses the sole authoritatively available method",
+                "Never choose or substitute a method in the transport",
+                "merge_methods_known: true",
+                "available_merge_methods",
                 "persistent gate evidence URL/digest pairs",
                 "Closeout PASS",
                 "proposal artifact, confirmation, Reviewer PASS, and memory-pr-ready callback",
@@ -887,7 +1099,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "human-only acceptance item",
                 "persistent confirmation URL/whole-comment digest",
                 "Do not require a planning-only or same-turn input tool before Implementation",
-                "persist and re-read the proposal",
+                "require the Phase Owner to persist it",
+                "independently re-read it in the coordinator",
                 "summarize its exact changes and evidence in the final response",
                 "wait for a new explicit confirmation re-entry",
                 "user_decision:",
@@ -922,7 +1135,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "return blocked before mutation and never carry that response forward",
                 "Do not require a planning-only or same-turn input tool",
                 "code-capable mode",
-                "only live user interaction in `delivery` remains the Context Promotion confirmation gate",
+                "only live user interaction inside a mutable `delivery` remains the Context Promotion confirmation gate",
             ),
             source="delivery split-turn input contract",
         )
@@ -1759,6 +1972,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "merge_provenance:",
                 "guarded_base_sha:",
                 "guarded_head_sha:",
+                "available_merge_methods: []",
+                "merge_methods_known: null",
                 "required_checks:",
             ),
             source="transport guard snapshot",
@@ -1837,7 +2052,7 @@ class OrchestrationContractTests(ProtocolAssertions):
             (
                 "current `delivery` coordinator",
                 "current explicit standalone `role: context-promotion`",
-                "Never accept final closure from a phase Agent delegated by `delivery`",
+                "Never accept final closure from a Phase Owner delegated by `delivery`, a Worker, a Reviewer, or any other descendant",
                 "| Change metadata |",
                 "explicit state/state reason",
                 "perform a separate fetch",
@@ -1936,7 +2151,9 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             relay,
             (
-                "continue in that same confirmation-continuation invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result",
+                "Require that Owner to persist and return the `confirmed` callback",
+                "the Coordinator only re-reads and validates them",
+                "Continue in the same confirmation-continuation invocation",
                 "`confirmed` alone is a recoverable interrupted state, not a successful phase result",
             ),
             source="coordinator confirmed handling",
@@ -2001,7 +2218,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 (
                     "required_checks_known: true",
                     "every required check currently successful",
-                    "actual merge method allowed by authoritative repository policy",
+                    "actual merge method equal to the bound Harness integration policy",
+                    "sole authoritatively available method captured by schema-v1 compatibility preflight",
                     "transport-verified merge provenance",
                     "Do not require post-merge mergeability",
                 ),
@@ -2017,8 +2235,11 @@ class OrchestrationContractTests(ProtocolAssertions):
             policy,
             (
                 "For a new merge mutation",
-                "An exact already-merged recovery instead requires verified merge provenance",
-                "does not require post-merge mergeability",
+                "For exact already-merged schema-v2 recovery",
+                "require the actual method to equal the configured method",
+                "schema-v1 recovery retains its strict historical policy check",
+                "mergeability/provenance",
+                "never present manual merge as the normal recovery action",
             ),
             source="root mergeability scope",
         )

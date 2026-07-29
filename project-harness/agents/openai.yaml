@@ -1,6 +1,6 @@
 interface:
   display_name: "Project Harness"
-  short_description: "Coordinate verified delivery with persistent stage telemetry"
-  default_prompt: "Use $project-harness explicitly with role: delivery in a code-capable mode to coordinate Implementation, Closeout, Context Promotion, merge, persistent stage timing/change observations, and Issue closure; at the Context Promotion gate, summarize the exact proposal and finish the turn, then continue only from the user's explicit source-bound re-entry. Use role: init for project setup and an exact phase role only for compatibility or recovery."
+  short_description: "Coordinate single-owner delivery with automatic PR integration"
+  default_prompt: "Use $project-harness explicitly with role: delivery in a code-capable mode to coordinate one Phase Owner per semantic round, direct read-only Workers and Reviewers, automatic configured product and memory PR merges, persistent stage observations, and Issue closure; at the sole Context Promotion user gate, summarize the exact proposal and finish the turn, then continue only from the user's explicit source-bound re-entry. Use role: init for schema-v2 project integration policy and an exact phase role only for compatibility or recovery."
 policy:
   allow_implicit_invocation: false

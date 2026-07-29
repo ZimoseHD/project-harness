@@ -1,8 +1,8 @@
 # Definition
 
-Execute this phase only after `project-harness` dispatches `role: definition`.
+Execute this phase only after `project-harness` dispatches `role: definition`. Run the selected role as the Definition Phase Owner; the exact public role name remains `definition`.
 
-Carry the Definition phase by turning an original requirement into the single GitHub Issue that a clean downstream agent can execute without access to the preceding conversation.
+Carry the Definition phase by turning an original requirement into the single GitHub Issue that a clean downstream Phase Owner can execute without access to the preceding conversation.
 
 ## Contents
 
@@ -19,6 +19,9 @@ Carry the Definition phase by turning an original requirement into the single Gi
 
 - Start with the original request and finish only after the reviewed Issue has been written, read back, and handed off by URL.
 - Treat the explicit invocation as authorization to create or update the Issue after every gate passes. Do not request a final human publishing confirmation.
+- Apply the root Skill's fixed two-hop delegation topology. The Definition Phase Owner may directly delegate narrow read-only work and each independent review round, but every Worker and Reviewer must remain mutation-free, must not delegate further, and must return only to this Owner.
+- Keep the Definition Phase Owner as the sole phase writer and the sole producer of the persistent Issue and phase hand-off. A Worker or Reviewer cannot publish, edit, or hand work directly to the next phase.
+- Continue the same semantic round in the same Phase Owner after a Worker failure or Reviewer FAIL. Replace the Owner only when a bound authoritative input or semantic target changes, the Owner explicitly terminates, or its context cannot be recovered.
 - Do not implement product code, modify tests, create a Pull Request, or write durable project memory. Route a required pre-implementation durable-decision change to a new `project-harness` invocation with `role: context-authoring` after Issue publication.
 - Keep drafts, decision packets, and review packets ephemeral. Persist task facts only in the GitHub Issue.
 - Fail closed whenever a required decision, independent Reviewer, GitHub write, or read-back verification is unavailable.
@@ -52,7 +55,7 @@ Ask only about decisions that can change:
 - difficult-to-reverse architecture choices;
 - acceptance and validation outcomes.
 
-Stop grilling when every remaining question can be delegated to the implementation agent without changing any item above. Do not continue into implementation design or action.
+Stop grilling when every remaining question can be delegated to the Implementation Phase Owner without changing any item above. Do not continue into implementation design or action.
 
 Handle uncertainty conservatively:
 
@@ -87,7 +90,7 @@ Include:
 - an implementation plan describing affected system areas, ordered stages, dependencies, stage outcomes, and required tests;
 - executable acceptance checks that cover the goal and boundaries;
 
-Treat the goal, non-goals, boundaries, confirmed decisions, constraints, and acceptance checks as the delivery contract. Treat the implementation plan as a non-binding starting prediction that the Implementation Agent may revise without returning to Definition unless the revision changes the delivery contract.
+Treat the goal, non-goals, boundaries, confirmed decisions, constraints, and acceptance checks as the delivery contract. Treat the implementation plan as a non-binding starting prediction that the Implementation Phase Owner may revise without returning to Definition unless the revision changes the delivery contract.
 
 Avoid prescribing class names, function structure, or ordinary code choices unless they are confirmed architecture constraints.
 
@@ -101,7 +104,7 @@ When creating a new Issue, set only the reviewed title and Body unless the origi
 
 Follow the loaded Issue transport protocol to normalize the complete Body and calculate its SHA-256 digest. Bind the exact title and normalized Body to that digest. Treat any title or Body change as a new draft requiring a new digest and review.
 
-Start a new clean Reviewer subagent for each review round. Never fall back to main-agent self-review. Give the Reviewer only this structured packet:
+The Definition Phase Owner must directly start one new clean, read-only Reviewer for each review round. Never fall back to Owner self-review. Give the Reviewer only this structured packet:
 
 - original requirement summary;
 - confirmed decisions and reasons;
@@ -116,8 +119,9 @@ Do not give the Reviewer the complete grilling conversation or prior review disc
 Constrain the Reviewer to pure review:
 
 - forbid edits to the draft, repository, or GitHub;
+- forbid further delegation or any hand-off outside the Definition Phase Owner;
 - forbid alternative designs, repair actions, and non-blocking wording suggestions;
-- require `PASS` or `FAIL` for the exact digest;
+- require a structured, non-persistent `PASS` or `FAIL` verdict for the exact digest, returned only to the Definition Phase Owner;
 - on `FAIL`, require only the violated criterion, evidence location, and impact for each blocker.
 
 Require the Reviewer to check:
@@ -133,12 +137,12 @@ Require the Reviewer to check:
 
 Route a failed review according to the blocker:
 
-- Fix drafting defects in the main agent.
+- Fix drafting defects in the same Definition Phase Owner.
 - Stop or return to the appropriate phase when required authoritative evidence remains unavailable.
 - Return product decision gaps to bounded grilling, one question at a time.
 - Stop on environmental or authority gaps.
 
-After any correction, calculate a new digest and use a new clean Reviewer. Allow at most three total review rounds. Stop without publishing when the third round fails.
+After any correction, calculate a new digest and let the same Definition Phase Owner directly start a new clean Reviewer. Allow at most three total review rounds. Stop without publishing when the third round fails.
 
 ## 5. Recheck and publish
 
@@ -154,7 +158,7 @@ Require the returned transport envelope to report `verified` or `no-op`, the exp
 
 ## 6. Hand off and stop
 
-After successful read-back verification, output one minimal hand-off:
+After successful read-back verification, the Definition Phase Owner outputs one minimal hand-off:
 
 - When pre-implementation Context Authoring is `required`, include the GitHub Issue URL, `role: context-authoring`, and the next action to invoke `project-harness` in a new clean session.
 - When it is `not-required`, normally include the GitHub Issue URL, `role: delivery`, and the next action to start the automated Implementation → Closeout → Context Promotion chain. State that an unconfirmed Context Promotion proposal will be summarized at a turn boundary and requires the later explicit source-bound `delivery` re-entry supplied by that summary. Preserve `role: implementation` as an additive compatibility hand-off only when the caller explicitly chose the legacy phase-by-phase path.

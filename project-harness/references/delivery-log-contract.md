@@ -8,7 +8,7 @@ Persist one concise, source-bound observation after every bounded Delivery stage
 
 - Store every observation as a top-level source Issue comment written by the Delivery Coordinator through the loaded Issue transport.
 - Do not add a `${marker_namespace}` marker. Keep the three workflow marker families unchanged.
-- Forbid phase Agents, sub-agents, sub-subagents, and Reviewers from writing Delivery observations.
+- Forbid Phase Owners, their direct read-only Workers, and independent Reviewers from writing Delivery observations. Only the Delivery Coordinator owns this audit mutation.
 - Derive every claim from independently re-read Issue, PR, comment, ref, check, merge, or repository evidence. The only exception is the response enum and modification-item count read directly from the current explicit proposal-bound confirmation re-entry; never reconstruct that exception after interruption.
 - Never let an observation authorize phase dispatch, PASS, Context Promotion confirmation, PR merge, Issue closure, or a durable-memory update.
 - Never place observations in the Issue Body, any PR Body, repository files, `.project-memory`, or an authority layer.
@@ -46,7 +46,7 @@ Use `observation_kind: boundary` only for one of these successful durable bounda
 
 Use `observation_kind: attempt` with `boundary: null` after a bounded attempt ends in a persisted return, repair, revision, pause, blocked state, or indeterminate transport result. Use the original phase or transport outcome without renaming it. An attempt observation never satisfies successful-boundary coverage.
 
-Every repair, re-review, proposal revision, confirmation round, reconciler, and merge recovery is a new attempt. Keep older observations as audit history; never choose active workflow state by observation time or attempt number.
+A changed binding, changed target, proposal revision, confirmation round, reconciler dispatch, or merge recovery is a new attempt. A narrow Worker replacement or re-review against an unchanged tuple inside the same live semantic-round Phase Owner remains part of that Owner attempt. Keep older observations as audit history; never choose active workflow state by observation time or attempt number.
 
 ## Write one exact schema
 
@@ -170,8 +170,8 @@ Reuse the same `attempt_id` if ambiguous transport recovery finds that one attem
 ## Measure time honestly
 
 - Define elapsed time as the Delivery Coordinator's inclusive wall duration from immediately before dispatch/gate work to acceptance of the independently verified outcome.
-- Include phase Agent work, nested parallel Agent work, validation, CI polling, transport calls, and external waiting inside that span.
-- Never add parallel sub-agent durations together.
+- Include Phase Owner work, direct Worker/Reviewer work, validation, CI polling, transport calls, and external waiting inside that span.
+- Never add parallel direct-child durations together.
 - Use a monotonic clock for `elapsed_ms` inside one live coordinator run. Use normalized RFC 3339 UTC timestamps ending in `Z` only for display.
 - Set `timing_quality: measured` only when the same live coordinator captured both ends. Require non-null start, finish, and non-negative integer elapsed time.
 - Preserve non-null `user_wait_ms` only when reading a valid historical observation whose same-turn host actually measured that wait. The current split-turn confirmation flow must write `user_wait_ms: null`: only after the explicit re-entry arrives, start its monotonic span immediately after syntactically recognizing the current exact role and `user_decision` packet and before reconstructing or re-reading its bound state, then measure coordinator processing, never the interval between turns.
