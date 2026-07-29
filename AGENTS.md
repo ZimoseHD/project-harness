@@ -102,9 +102,9 @@ Skill 运行时的每个阶段由一个隔离的 Phase Owner 执行一个精确�
 3. **联动检查。** 搜索受影响的角色、字段、marker、Body 标题、状态及其生产者和消费者。行为变化必须同步更新相应测试。
 4. **本地验证。** 运行现有测试和 Skill 结构校验，确认引用完整、失败路径保持 fail closed，且没有临时文件或平台元数据进入 Skill。
 5. **发布源版本。** 将通过验证的 `project-harness/` 发布到 CC-Switch 当前跟踪的稳定分支。兼容性变更同时记录迁移说明；若项目采用 Git tag 或 Release，则仅把它们作为审计记录，不在多个文件中维护平行版本号。
-6. **执行更新。** 在 CC-Switch 中刷新来源，确认 `project-harness` 出现更新，执行更新，并同步或启用到 Codex 与 Claude。
-7. **双端验收。** 分别在新的 Codex 和 Claude 会话中确认 Skill 可发现：Codex 只能通过 `$project-harness` 显式调用；Claude 的 `/project-harness` 可用，且 `disable-model-invocation: false` 允许按相关性加载。两端都必须只让当前消息中的精确角色输入进入对应操作，缺失或错误角色会保守拒绝。任一端失败都不算发布完成；修复后从第 2 步重新执行。
-8. **记录结果。** 记录发布来源、验证结果、兼容性影响和遗留风险。
+6. **交接手动更新。** 发布后向用户报告精确来源、分支、commit、验证结果和兼容性影响，然后停止。CC-Switch 的来源刷新、Skill 更新以及向 Codex 与 Claude 的同步或启用均由用户手动完成，维护 Agent 不得代为操作。
+7. **按需双端验收。** 仅当用户已确认手动更新完成并在当前消息中明确要求验收时，才分别在新的 Codex 和 Claude 会话中确认 Skill 可发现：Codex 只能通过 `$project-harness` 显式调用；Claude 的 `/project-harness` 可用，且 `disable-model-invocation: false` 允许按相关性加载。两端都必须只让当前消息中的精确角色输入进入对应操作，缺失或错误角色会保守拒绝。该验收是手动更新后的独立任务，不是 Skill 源码发布的完成门槛。
+8. **记录结果。** 记录发布来源、源码验证结果、兼容性影响、手动更新交接和遗留风险；若执行了按需双端验收，再追加记录其结果。
 
 修改 Markdown 协议时，精确保留机器可识别的角色名、字段名、状态值、marker、模板标题和代码块结构。修改 Python 时优先使用标准库、类型清晰的纯函数和正常路径/失败路径成对测试，除非任务明确批准新的依赖或副作用。
 
@@ -128,7 +128,7 @@ python3 -B -m unittest discover -s project-harness/scripts -p 'test_*.py' -v
 - Delivery 阶段观察只由协调 Agent 追加，实时耗时与恢复补录可区分，修改项有界且不泄露原始用户输入；覆盖检查读取完整分页评论并保持观察与流程权威分离，Issue 关闭后记录精确关闭耗时/变更且绝不为补日志重开；
 - 新增或修改的失败路径仍然保守关闭；
 - 示例输入、输出和 `agents/openai.yaml` 没有承诺不存在的隐式行为；
-- CC-Switch 更新后，Codex 与 Claude 均能发现并显式调用同一个 `project-harness` Skill；
+- 若用户已确认手动通过 CC-Switch 更新且当前消息明确要求双端验收，Codex 与 Claude 均能发现并显式调用同一个 `project-harness` Skill；
 - 未把编辑器元数据、下载元数据或临时产物当作 Skill 内容。
 
 若任务只修改文档，也要运行现有测试，以发现协议修改对确定性工具约定造成的意外偏差。
@@ -140,5 +140,5 @@ python3 -B -m unittest discover -s project-harness/scripts -p 'test_*.py' -v
 - 变更落在正确的职责层，且没有引入重复权威来源；
 - 所有受影响的角色、契约、传输协议、工具和元数据保持一致；
 - 兼容性影响与迁移要求已明确处理；
-- 自动化测试通过，人工协议核对完成，CC-Switch 更新完成，并通过 Codex 与 Claude 双端验收；
+- 自动化测试通过，人工协议核对完成，源版本已发布，并已向用户提供精确的 CC-Switch 手动更新交接；
 - 交付说明清楚指出行为变化、验证结果和仍存在的风险。
