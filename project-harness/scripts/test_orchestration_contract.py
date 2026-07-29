@@ -63,6 +63,8 @@ class OrchestrationContractTests(ProtocolAssertions):
     def setUpClass(cls) -> None:
         cls.skill = read_text("SKILL.md")
         cls.delivery = read_text("references/delivery.md")
+        cls.definition = read_text("references/definition.md")
+        cls.context_authoring = read_text("references/context-authoring.md")
         cls.implementation = read_text("references/implementation.md")
         cls.closeout = read_text("references/closeout.md")
         cls.promotion = read_text("references/context-promotion.md")
@@ -107,10 +109,11 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             self.openai,
             (
-                "In Plan mode",
                 "role: delivery",
+                "code-capable mode",
                 "Implementation, Closeout, Context Promotion",
-                "request_user_input confirmation",
+                "summarize the exact proposal and finish the turn",
+                "explicit source-bound re-entry",
                 "persistent stage timing/change observations",
                 "and Issue closure",
                 "compatibility or recovery",
@@ -119,7 +122,62 @@ class OrchestrationContractTests(ProtocolAssertions):
             source="agents/openai.yaml",
         )
         self.assertNotIn("run one feature-iteration phase", self.openai)
-        self.assertIn("disable-model-invocation: true", self.skill)
+        self.assertNotIn("In Plan mode", self.openai)
+        self.assertNotIn("request_user_input", self.openai)
+        self.assertIn("disable-model-invocation: false", self.skill)
+        self.assertContainsAll(
+            self.skill,
+            (
+                "Codex requires the user's `$project-harness` trigger",
+                "Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection",
+                "`disable-model-invocation: false`",
+                "host loading alone never supplies a role",
+                "Reject before Harness mutation when the current message lacks that packet",
+            ),
+            source="cross-host invocation adapter contract",
+        )
+        for role, text, heading in (
+            ("implementation", self.implementation, "Enforce the phase boundary"),
+            ("closeout", self.closeout, "Enforce the authority boundary"),
+        ):
+            boundary = markdown_section(text, heading)
+            with self.subTest(host_neutral_standalone_authority=role):
+                self.assertContainsAll(
+                    boundary,
+                    (
+                        f"current user message's exact host-valid `role: {role}` packet",
+                        "root Skill's invocation-adapter contract",
+                        "host/model loading or automatic routing by itself",
+                    ),
+                    source=f"{role} standalone authority",
+                )
+                self.assertNotIn("explicit `$project-harness`", boundary)
+
+    def test_upstream_handoffs_describe_the_split_turn_delivery_boundary(self) -> None:
+        definition_handoff = markdown_section(self.definition, "6. Hand off and stop")
+        context_handoff = markdown_section(
+            self.context_authoring,
+            "Return a closed result",
+        )
+
+        self.assertContainsAll(
+            definition_handoff,
+            (
+                "start the automated Implementation → Closeout → Context Promotion chain",
+                "unconfirmed Context Promotion proposal will be summarized at a turn boundary",
+                "later explicit source-bound `delivery` re-entry",
+            ),
+            source="Definition delivery handoff",
+        )
+        self.assertContainsAll(
+            context_handoff,
+            (
+                "first explicit delivery invocation coordinates every phase through the reviewed Context Promotion proposal",
+                "proposal summary supplies the exact later source-bound re-entry",
+                "confirmation and any remaining integration",
+            ),
+            source="Context Authoring delivery handoff",
+        )
 
     def test_delivery_evidence_has_one_authority_and_is_routed_by_role(self) -> None:
         dispatch = markdown_section(self.skill, "Load one top-level operation")
@@ -412,7 +470,9 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Use a monotonic clock",
                 "ending in `Z`",
                 "timing_quality: measured",
-                "stage `context-confirmation` with activity `confirm`",
+                "current split-turn confirmation flow must write `user_wait_ms: null`",
+                "only after the explicit re-entry arrives",
+                "never the interval between turns",
                 "Never duplicate one measured span",
                 "timing_quality: reconstructed",
                 "Use `unknown` only when neither exact timestamp can be established",
@@ -436,9 +496,10 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             privacy,
             (
-                "raw `request_user_input` modification text or its digest",
+                "raw confirmation replies or their digests",
+                "legacy `request_user_input` modification text",
                 "absolute local paths",
-                "record only `approved`, `revision-requested`, `paused`, or `blocked`",
+                "map a proposal-bound top-level decision exactly",
                 "modification item count",
                 "best-effort and never part of boundary coverage",
                 "always `no_write` during Context Promotion classification",
@@ -586,7 +647,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "record_kind: delivery-stage-observation",
                 "audit-only single-task chronology",
                 "Classify Delivery stage observations as `no_write`",
-                "Never write raw structured-input text, its digest",
+                "Never write raw confirmation-response text, its digest",
                 "do not read, write, or judge Delivery observation coverage",
             ),
             source="Context Promotion log exclusion",
@@ -607,7 +668,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Never ask the user to create a new session for a normal transition",
                 "coordinator consumes the persistent hand-off",
                 "two permitted merge gates only in the coordinator",
-                "Never request user input outside the Context Promotion confirmation gate",
+                "Never open a user decision gate outside Context Promotion",
+                "ends a turn and waits for an explicit source-bound re-entry",
             ),
             source="delivery coordinator boundary",
         )
@@ -621,6 +683,10 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Product integration persists the PR merge state and merge commit identity",
                 "Context Promotion persists proposal, confirmation, Ready/terminal callbacks",
                 "Do not add another run marker or local coordinator checkpoint",
+                "only the two `awaiting-confirmation` rows apply",
+                "legacy reconstruction rows cannot also match",
+                "with no schema-v2 `awaiting-confirmation` tip",
+                "handle confirmation only in a later bound decision turn",
             ),
             source="delivery recovery contract",
         )
@@ -801,7 +867,7 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertIn("Closeout never merges", self.closeout)
         self.assertIn("Do not merge the project-memory PR", self.promotion)
 
-    def test_context_promotion_is_the_only_structured_user_gate(self) -> None:
+    def test_context_promotion_uses_a_split_turn_source_bound_user_gate(self) -> None:
         invocation = markdown_section(self.skill, "Require an exact invocation")
         delivery_input = markdown_section(self.delivery, "Accept the delivery input")
         relay = markdown_section(
@@ -815,17 +881,25 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "all paginated source Issue comments",
                 "`comments_complete: true`",
                 "first-read-closed standalone/legacy compatibility no-op",
-                "without Delivery-log backfill, an unlocked Issue, `add-comment`, or structured input",
+                "without Delivery-log backfill, an unlocked Issue, `add-comment`, or a pending user decision",
                 "`locked: false`",
                 "authenticated Issue `add-comment` capability",
                 "human-only acceptance item",
                 "persistent confirmation URL/whole-comment digest",
-                "Fresh delivery must pass it before Implementation",
-                "recovery after verified confirmation/terminal does not require it",
-                "`recovery_condition: unsupported-delivery-input`",
+                "Do not require a planning-only or same-turn input tool before Implementation",
+                "persist and re-read the proposal",
+                "summarize its exact changes and evidence in the final response",
+                "wait for a new explicit confirmation re-entry",
+                "user_decision:",
+                "proposal_sha256: SHA256",
+                "decision: approved | revise | pause",
+                "sole active `awaiting-confirmation` tip",
+                "supplied without one matching active tip",
+                "return blocked before mutation and never retain it for a later proposal",
+                "A bare reply, prior chat, or copied decision without a current exact role",
                 "Context Promotion proposal remains `delivery`'s only live user interaction",
             ),
-            source="root delivery preflight",
+            source="root split-turn confirmation contract",
         )
         self.assertContainsAll(
             delivery_input,
@@ -834,18 +908,23 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "complete source Issue and every paginated top-level comment",
                 "`comments_complete: true`",
                 "first-read-closed standalone/legacy compatibility no-op",
-                "does not require an unlocked Issue, `add-comment`, or structured-input capability",
+                "does not require an unlocked Issue, `add-comment`, or a pending user decision",
                 "remaining path that may mutate or backfill",
                 "`locked: false`",
                 "`add-comment` capability",
                 "persistent explicit confirmation URL and whole-comment digest bound to the exact current acceptance snapshot",
                 "If no product snapshot exists yet",
-                "A fresh delivery must pass this check before its first Implementation mutation",
-                "recovery after an already verified confirmation or terminal does not require the tool",
-                "`recovery_condition: unsupported-delivery-input`",
+                "root Skill's exact `user_decision` block",
+                "current explicit `role: delivery` invocation",
+                "claimed bindings, not trusted state",
+                "Reject a missing role, bare approval, ambiguous decision",
+                "no sole active `awaiting-confirmation` tip matches it",
+                "return blocked before mutation and never carry that response forward",
+                "Do not require a planning-only or same-turn input tool",
+                "code-capable mode",
                 "only live user interaction in `delivery` remains the Context Promotion confirmation gate",
             ),
-            source="delivery unsupported-input preflight",
+            source="delivery split-turn input contract",
         )
         self.assertInOrder(
             relay,
@@ -858,11 +937,19 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "exact authority effect",
                 "source evidence",
                 "project-memory PR URL",
-                "use `request_user_input` on Codex or the host's equivalent structured input tool",
+                "In the final response, provide a self-contained summary",
+                "exact active proposal callback URL/whole-comment SHA-256",
+                "ready-to-send explicit `role: delivery` re-entry packet",
+                "`$project-harness` for Codex or `/project-harness` for Claude Code",
                 "Approve exact proposal",
                 "Pause without integration",
-                "free-text alternative for exact modification items",
-                "Handle the response",
+                "Revise exact proposal",
+                "end the current turn immediately",
+                "On a later current explicit `role: delivery` confirmation re-entry",
+                "Immediately after syntactically recognizing the current exact role and `user_decision` packet",
+                "Reconstruct the workflow from persistent evidence",
+                "On exact approval",
+                "Summarize the new revision and end the turn again",
             ),
             source="Context Promotion confirmation relay",
         )
@@ -870,13 +957,28 @@ class OrchestrationContractTests(ProtocolAssertions):
             relay,
             (
                 "Do not set an automatic resolution or default",
-                "Do not use an ordinary chat question as a fallback",
                 "eligibility registration URL/digest",
                 "every artifact evidence/current-authority source",
-                "On modification items",
+                "`outcome: blocked`",
+                "`recovery_condition: awaiting-context-promotion-decision`",
+                "Do not call a same-turn input tool",
+                "write a `confirmed` callback",
+                "Silence and timeout leave the persisted `awaiting-confirmation` tip unchanged",
+                "proposal URL/digest to equal the sole active `awaiting-confirmation` whole comment",
+                "Any source identity, proposal content, classification, destination",
+                "Never span a monotonic timer across turns",
+                "`approved` → the `context-confirmed` boundary's `decision: approved`",
+                "`revise` → attempt `response_kind: revision-requested`",
+                "`pause` → attempt `response_kind: paused`",
+                "If that proposal binding cannot be established, return blocked before any mutation and write no observation",
+                "without starting an overlapping dispatch timer",
+                "attach it only to `context-confirmed`",
+                "before any revision phase dispatch",
+                "standard non-overlapping phase-dispatch timer",
+                "On exact modification items",
                 "new `awaiting-confirmation` callback",
-                "Present the new revision and ask again",
-                "only interactive gate in `delivery`",
+                "On pause",
+                "This split-turn exchange is the only interactive gate in `delivery`",
             ),
             source="Context Promotion confirmation behavior",
         )
@@ -888,28 +990,211 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             confirmation,
             (
-                "request_user_input",
-                "On Codex, this requires Plan mode",
-                "equivalent structured choice-and-free-text input",
-                "return blocked with the proposal persisted",
-                "never downgrade to an ordinary chat question or infer approval",
+                "final, self-contained summary",
+                "ready-to-send explicit `role: context-promotion` re-entry packet",
+                "`$project-harness` for Codex or `/project-harness` for Claude Code",
+                "end the proposal-producing turn with `awaiting-confirmation`",
+                "Do not call a same-turn input tool",
+                "write `confirmed`",
                 "Bind approval only to the displayed proposal comment URL/digest",
+                "Silence or timeout leaves the active proposal unchanged",
+                "On a later exact confirmation re-entry",
+                "sole active `awaiting-confirmation` whole comment",
+                "For `decision: revise`, do not write `confirmed`",
+                "For `decision: pause`, make no phase mutation",
             ),
             source="Context Promotion phase confirmation",
         )
-        self.assertIn("Closeout must not call `request_user_input`", self.delivery)
-        self.assertIn("Never call `request_user_input` in Closeout", self.closeout)
+        self.assertIn("Closeout must not open the user decision gate", self.delivery)
+        self.assertIn("Never open the user decision gate in Closeout", self.closeout)
         self.assertIn(
-            "Do not request user input during Implementation or Closeout",
+            "Do not open a user decision gate during Implementation or Closeout",
             self.skill,
         )
+        for source, text in (
+            ("SKILL.md", self.skill),
+            ("delivery.md", self.delivery),
+            ("context-promotion.md", self.promotion),
+            ("closeout.md", self.closeout),
+            ("agents/openai.yaml", self.openai),
+        ):
+            with self.subTest(source=source):
+                self.assertNotIn("request_user_input", text)
+
+    def test_confirmation_reentry_is_current_source_bound_and_fail_closed(self) -> None:
+        delegation = markdown_section(self.skill, "Delegate without expanding authority")
+        relay = markdown_section(
+            self.delivery,
+            "Relay the Context Promotion confirmation",
+        )
+        evidence_confirmation = self.evidence
+
         self.assertContainsAll(
-            self.skill,
+            delegation,
             (
-                "A fresh or pre-confirmation `delivery` path must preflight this capability before its first mutation",
-                "already verified confirmation/terminal recovery and the exact read-only compatibility no-op do not require it",
+                "current explicit proposal-bound confirmation re-entry",
+                "independently verifying its URL/digest",
+                "sole active `awaiting-confirmation` tip",
+                "request for a new proposal, not as direct patch authority",
+                "host parent-child provenance from the current live `delivery` invocation",
+                "serialized envelope, callback, branch, prior run, or hand-off cannot create authority",
             ),
-            source="state-aware structured-input preflight",
+            source="confirmation delegation authority",
+        )
+        self.assertContainsAll(
+            evidence_confirmation,
+            (
+                "current user's explicit proposal-bound confirmation re-entry",
+                "current exact `role: delivery` invocation",
+                "current exact `role: context-promotion` invocation",
+                "sole active `awaiting-confirmation` whole comment",
+                "require its URL/digest to equal that decision",
+                "stored or relayed packet",
+                "bare reply",
+                "prior invocation",
+                "silence, timeout, or general delivery intent cannot authorize it",
+            ),
+            source="persistent confirmation authority",
+        )
+        self.assertContainsAll(
+            relay,
+            (
+                "Re-read the source, eligibility registration, authority base",
+                "every artifact evidence/current-authority source",
+                "Reviewer PASS, state callback, and any memory PR tuple",
+                "Any source identity, proposal content, classification, destination",
+                "PR Body/head/base tuple, validation, or Reviewer drift invalidates the response",
+                "return blocked without confirmation or downstream workflow mutation",
+                "new artifact, review, callback, summary, and later decision",
+                "If no active tip exists or the proposal URL/digest is missing, mismatched, or unreadable",
+                "without any observation or other mutation",
+                "Do not treat free text as a hidden code or policy patch",
+            ),
+            source="confirmation drift handling",
+        )
+
+    def test_standalone_context_promotion_waits_and_resumes_explicitly(self) -> None:
+        confirmation = markdown_section(
+            self.promotion,
+            "Persist and relay the confirmation gate",
+        )
+        result = markdown_section(
+            self.promotion,
+            "Return a persistent phase result",
+        )
+
+        self.assertContainsAll(
+            confirmation,
+            (
+                "When standalone, present the same complete details in the final response",
+                "proposal callback URL/whole-comment SHA-256",
+                "Reviewer PASS identity",
+                "complete memory-PR tuple",
+                "explicit `role: context-promotion` re-entry packet",
+                "end the proposal-producing turn with `awaiting-confirmation`",
+                "For `decision: pause`, make no phase mutation and return the existing `awaiting-confirmation` identities",
+                "Return blocked without a confirmation mutation for a malformed decision, stale proposal identity, or source drift",
+            ),
+            source="standalone confirmation boundary",
+        )
+        self.assertContainsAll(
+            result,
+            (
+                "outcome: awaiting-confirmation | verified-memory-pr",
+                "coordinator_action: request-confirmation | merge-memory-pr | close-issue | null",
+                "For standalone `awaiting-confirmation`",
+                "`coordinator_action: null`",
+                "leave `issue_closure: null`",
+                "hand off to the user",
+                "explicit `role: context-promotion` re-entry packet",
+            ),
+            source="standalone awaiting-confirmation result",
+        )
+
+    def test_cross_turn_confirmation_logging_is_honest(self) -> None:
+        relay = markdown_section(
+            self.delivery,
+            "Relay the Context Promotion confirmation",
+        )
+        timing = markdown_section(self.delivery_log, "Measure time honestly")
+        privacy = markdown_section(
+            self.delivery_log,
+            "Protect user and environment data",
+        )
+
+        self.assertContainsAll(
+            relay,
+            (
+                "append and verify one `context-proposal-reviewed` boundary observation",
+                "Silence and timeout leave the persisted `awaiting-confirmation` tip unchanged and create no user-response observation",
+                "Set `user_wait_ms: null` for this cross-turn flow",
+                "measure only the current re-entry's processing span",
+                "never persist raw input or its digest",
+            ),
+            source="delivery cross-turn logging",
+        )
+        self.assertContainsAll(
+            timing,
+            (
+                "Preserve non-null `user_wait_ms` only when reading a valid historical observation",
+                "current split-turn confirmation flow must write `user_wait_ms: null`",
+                "start its monotonic span immediately after syntactically recognizing the current exact role and `user_decision` packet",
+                "before reconstructing or re-reading its bound state",
+                "never the interval between turns",
+            ),
+            source="cross-turn timing compatibility",
+        )
+        self.assertContainsAll(
+            privacy,
+            (
+                "raw confirmation replies or their digests",
+                "map a proposal-bound top-level decision exactly",
+                "`approved` → the `context-confirmed` boundary's `decision: approved`",
+                "`revise` → attempt `response_kind: revision-requested`",
+                "`pause` → attempt `response_kind: paused`",
+                "Use attempt `response_kind: blocked` only after the displayed proposal URL/digest has independently matched the sole active tip",
+                "return blocked without writing an observation or making any other mutation",
+                "modification item count",
+                "keep both result fields null",
+                "A later reviewed proposal has its own `context-proposal-reviewed` boundary",
+                "must never be back-linked as the earlier response attempt's result",
+                "current-invocation revision/pause/blocked attempt observation is best-effort",
+                "do not reconstruct it",
+            ),
+            source="cross-turn confirmation privacy",
+        )
+
+        persistence = markdown_section(
+            self.delivery,
+            "Persist Delivery stage observations",
+        )
+        self.assertContainsAll(
+            self.delivery_log,
+            (
+                "require `validate_new_observation` to return no errors before every new observation write",
+                "Use the backward-compatible `validate_observation` only when reading existing or historical records",
+                "calculating a transition key does not replace the new-write validator",
+                "Every new confirmation-response attempt must use `target_boundary: context-confirmed`",
+                "use only `revision-requested`, `paused`, or `blocked` with `response_kind == result_kind == outcome`",
+                "require `result_url: null` and `result_sha256: null`",
+                "A new attempt may not use `result_kind` / `outcome: approved`",
+                "may not omit its matching response kind and count",
+                "Set all three change-quality domains to `not-applicable`",
+                "keep every change list empty",
+                "successful `approved` decision is represented only by the `context-confirmed` boundary",
+                "exactly one `source_bindings` item with `kind: proposal-callback`",
+                "independently matched active `awaiting-confirmation` whole comment",
+            ),
+            source="delivery log producer/reader validation split",
+        )
+        self.assertContainsAll(
+            persistence,
+            (
+                "calculate `transition_key`",
+                "require `validate_new_observation` to return no errors before every new write",
+                "Use `validate_observation` only to dual-read existing/historical records",
+            ),
+            source="coordinator observation writer",
         )
 
     def test_confirmation_state_chain_and_legacy_dual_read_are_explicit(self) -> None:
@@ -947,7 +1232,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "outcome: memory-pr-merged",
                 "preceding whole comment",
                 "completed compatibility no-op",
-                "structured confirmation before any new merge or close",
+                "later current explicit source-bound confirmation re-entry before any new merge or close",
             ),
             source="shared marker and dual-read contract",
         )
@@ -1082,7 +1367,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Require `required_checks_known: true`",
                 "cannot substitute for this machine-verifiable merge prerequisite",
                 "remain BLOCKED while the transport reports false",
-                "Never call `request_user_input` in Closeout",
+                "Never open the user decision gate in Closeout",
             ),
             source="Closeout required-check gate",
         )
@@ -1116,7 +1401,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "required-check knowledge or mergeability is unknown",
                 "required checks fail because of the product change",
                 "mergeability is false because of a repairable promotion-scope conflict",
-                "return to structured confirmation",
+                "return to a new cross-turn confirmation summary",
                 "Exact unmerged legacy `memory-pr-ready`",
             ),
             source="delivery fail-closed recovery",
@@ -1409,7 +1694,7 @@ class OrchestrationContractTests(ProtocolAssertions):
             (
                 "Establish its `mutation_author_login` as the trusted workflow author",
                 "transport-returned author login",
-                "current live structured-input result",
+                "current user's explicit proposal-bound confirmation re-entry",
                 "host-provenance-bound `user_decision`",
                 "Define the active tip as the sole reachable, non-superseded end",
                 "multiple active or unsuperseded confirmed revisions",
@@ -1651,7 +1936,7 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             relay,
             (
-                "continue in that same phase invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result",
+                "continue in that same confirmation-continuation invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result",
                 "`confirmed` alone is a recoverable interrupted state, not a successful phase result",
             ),
             source="coordinator confirmed handling",

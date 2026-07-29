@@ -2,14 +2,14 @@
 
 Load this contract only for the top-level `delivery` operation.
 
-Persist one concise, source-bound observation after every bounded Delivery stage attempt whose outcome can be independently verified, plus a privacy-reduced observation of a structured confirmation response seen by the current live coordinator. Use the observations for audit, timing, change summaries, and final reporting only. Never use them as workflow state, product evidence, user approval, or mutation authority.
+Persist one concise, source-bound observation after every bounded Delivery stage attempt whose outcome can be independently verified, plus a privacy-reduced observation of an explicit confirmation response seen in the current coordinator invocation. Use the observations for audit, timing, change summaries, and final reporting only. Never use them as workflow state, product evidence, user approval, or mutation authority.
 
 ## Keep logs observational
 
 - Store every observation as a top-level source Issue comment written by the Delivery Coordinator through the loaded Issue transport.
 - Do not add a `${marker_namespace}` marker. Keep the three workflow marker families unchanged.
 - Forbid phase Agents, sub-agents, sub-subagents, and Reviewers from writing Delivery observations.
-- Derive every claim from independently re-read Issue, PR, comment, ref, check, merge, or repository evidence. The only exception is the response enum and modification-item count read directly from the current live structured confirmation result; never reconstruct that exception after interruption.
+- Derive every claim from independently re-read Issue, PR, comment, ref, check, merge, or repository evidence. The only exception is the response enum and modification-item count read directly from the current explicit proposal-bound confirmation re-entry; never reconstruct that exception after interruption.
 - Never let an observation authorize phase dispatch, PASS, Context Promotion confirmation, PR merge, Issue closure, or a durable-memory update.
 - Never place observations in the Issue Body, any PR Body, repository files, `.project-memory`, or an authority layer.
 - Treat an edited, deleted, malformed, forged, stale, or missing observation as an audit/compliance defect only: it never invalidates or rolls back the underlying authoritative transition. Reconstruct workflow state from the original artifacts, then append a corrected observation without repeating the phase, confirmation, merge, or close mutation. The current Delivery may pause before its next irreversible transition, and may not declare completion, until its required observation obligation is satisfied.
@@ -127,7 +127,7 @@ Calculate `transition_key` as lowercase SHA-256 over UTF-8 canonical JSON with s
 
 Exclude activity, top-level outcome, attempt ID, timestamps, elapsed time, attempt number, change quality/preview, reason code, and the observation's own URL/digest. The canonical snapshots still bind an attempt's persisted `result_kind`. This makes initial `verified`, recovery `no-op`, and reconstructed observations of one exact durable state share a key without turning that key into workflow authority. Use `attempt_id`, not `transition_key`, to distinguish separate live executions.
 
-Use `scripts/delivery_log.py` to validate a constructed payload, calculate its transition key, and evaluate successful-boundary coverage before writing or closing.
+Use `scripts/delivery_log.py` to calculate a constructed payload's transition key, then require `validate_new_observation` to return no errors before every new observation write. Use the backward-compatible `validate_observation` only when reading existing or historical records and evaluating successful-boundary coverage; calculating a transition key does not replace the new-write validator.
 
 ## Canonicalize snapshots and evidence
 
@@ -163,7 +163,7 @@ output_snapshot:
   modification_item_count: null
 ~~~
 
-Set `target_boundary` when the attempt was working toward one fixed boundary. Populate `source_bindings` with sorted `{kind, url, sha256}` objects. Populate `result_url` and `result_sha256` together only for a persisted result. Populate `response_kind` and `modification_item_count` only for the current live structured-confirmation exception; otherwise keep both null. Keep the evidence list equal to the persistent source/result bindings represented by these snapshots.
+Set `target_boundary` when the attempt was working toward one fixed boundary. Populate `source_bindings` with sorted `{kind, url, sha256}` objects. Populate `result_url` and `result_sha256` together only for a persisted result. Populate `response_kind` and `modification_item_count` only for the current explicit confirmation-response exception; otherwise keep both null. Every new confirmation-response attempt must use `target_boundary: context-confirmed`, use only `revision-requested`, `paused`, or `blocked` with `response_kind == result_kind == outcome`, require `result_url: null` and `result_sha256: null`, and contain exactly one `source_bindings` item with `kind: proposal-callback` whose URL/digest is the independently matched active `awaiting-confirmation` whole comment. A new attempt may not use `result_kind` / `outcome: approved`; a new attempt with `revision-requested` or `paused` result/outcome may not omit its matching response kind and count. Set all three change-quality domains to `not-applicable`, keep every change list empty, use `truncated: false` / `omitted_count: 0`, and exclude the observation's own `add-comment`. A successful `approved` decision is represented only by the `context-confirmed` boundary; continue dual-reading valid historical attempt observations that used `response_kind: approved`. Keep the evidence list equal to the persistent source bindings represented by these snapshots.
 
 Reuse the same `attempt_id` if ambiguous transport recovery finds that one attempted observation write produced more than one exact comment. Generate a new ID for a genuinely new live execution. Group aggregate attempt/timing statistics by `attempt_id`; repeated comments with the same ID do not add another attempt or duration. A null-ID reconstructed boundary contributes no attempt count or measured time.
 
@@ -174,7 +174,7 @@ Reuse the same `attempt_id` if ambiguous transport recovery finds that one attem
 - Never add parallel sub-agent durations together.
 - Use a monotonic clock for `elapsed_ms` inside one live coordinator run. Use normalized RFC 3339 UTC timestamps ending in `Z` only for display.
 - Set `timing_quality: measured` only when the same live coordinator captured both ends. Require non-null start, finish, and non-negative integer elapsed time.
-- For stage `context-confirmation` with activity `confirm`, record `user_wait_ms` separately when measured and require it not to exceed `elapsed_ms`. Do not populate it for another stage or activity.
+- Preserve non-null `user_wait_ms` only when reading a valid historical observation whose same-turn host actually measured that wait. The current split-turn confirmation flow must write `user_wait_ms: null`: only after the explicit re-entry arrives, start its monotonic span immediately after syntactically recognizing the current exact role and `user_decision` packet and before reconstructing or re-reading its bound state, then measure coordinator processing, never the interval between turns.
 - When one live coordinator action produces more than one durable boundary before control returns, attach the measured span to exactly one observation and record the other boundary observations as reconstructed with null elapsed time. Never duplicate one measured span across boundary records.
 - After interruption or clean re-entry, append a reconstructed observation only after original workflow evidence proves the outcome. Set `elapsed_ms: null` and `user_wait_ms: null`; never derive active duration from commit time, comment time, or model estimates.
 - Use `timing_quality: reconstructed` when trustworthy persisted events supply `finished_at`, and optionally `started_at`, but the live monotonic span was not captured. Use `unknown` only when neither exact timestamp can be established.
@@ -247,13 +247,13 @@ Limit the combined preview lists to 100 entries. If more exist, set `truncated: 
 
 Never persist:
 
-- raw `request_user_input` modification text or its digest;
+- raw confirmation replies or their digests, including legacy `request_user_input` modification text;
 - prompts, chat summaries, reasoning, Reviewer prose, or conversation history;
 - stdout/stderr, full tool traces, tokens, cookies, credentials, environment variables, or secrets;
 - absolute local paths, local usernames, email addresses, or Agent display names;
 - uncommitted content, complete code diffs, or test output.
 
-For Context confirmation, record only `approved`, `revision-requested`, `paused`, or `blocked`, the displayed proposal URL/digest, modification item count, and the resultant reviewed proposal identity when one exists. A confirmation observation never substitutes for the schema-v2 `confirmed` callback. The live-only revision/pause/blocked attempt observation is best-effort and never part of boundary coverage: if interruption loses the structured result before the observation is written, do not reconstruct it and do not block later recovery on its absence.
+For Context confirmation, map a proposal-bound top-level decision exactly: `approved` → the `context-confirmed` boundary's `decision: approved`, `revise` → attempt `response_kind: revision-requested`, and `pause` → attempt `response_kind: paused`. Use attempt `response_kind: blocked` only after the displayed proposal URL/digest has independently matched the sole active tip and later validation finds malformed decision/items, post-binding source drift, or an out-of-authority request. If no active tip exists or that proposal binding is missing, mismatched, or unreadable, return blocked without writing an observation or making any other mutation. For a permitted response attempt, record only the displayed proposal callback binding, response enum, and modification item count; keep both result fields null and report no repository, GitHub, or context changes. A later reviewed proposal has its own `context-proposal-reviewed` boundary and must never be back-linked as the earlier response attempt's result. Require count zero for `paused`, a positive count for `revision-requested`, and a non-negative count for `blocked`. A confirmation observation never substitutes for the schema-v2 `confirmed` callback. The current-invocation revision/pause/blocked attempt observation is best-effort and never part of boundary coverage: if interruption loses the response before the observation is written, do not reconstruct it and do not block later recovery on its absence.
 
 Treat every Delivery observation as single-task chronology and always `no_write` during Context Promotion classification. Never promote a stage log into durable project memory.
 
@@ -266,7 +266,7 @@ Before writing, require the Issue transport to enumerate all source Issue commen
 - If a response is ambiguous, do not retry. Search/read the complete candidate set and accept success only when exact Body/digest evidence proves the original comment exists.
 - Ignore an invalid or untrusted observation for coverage and report it as a log diagnostic. It cannot invalidate original phase evidence.
 - If durable evidence proves a boundary completed but no valid observation exists, append a reconstructed observation with null elapsed time before advancing.
-- If a stage failed without stable evidence, do not invent a historical attempt observation. The same rule applies to a structured confirmation response no longer present in the current live tool result.
+- If a stage failed without stable evidence, do not invent a historical attempt observation. The same rule applies to a confirmation response no longer present in the current explicit re-entry.
 - If a prior log was deleted or edited, append a reconstructed replacement; never edit another observation.
 - Never repeat a merge, confirmation, or closure mutation merely to create a missing log. After an Issue is closed, never reopen it to repair logging.
 
@@ -385,6 +385,7 @@ Count valid comment URLs in `observation_count`, and report comments beyond one 
 ## Preserve compatibility
 
 - Treat this as additive schema version 1. Keep the three workflow markers and every existing callback schema unchanged.
+- Continue accepting valid historical same-turn observations with measured `user_wait_ms`; every new split-turn confirmation writer uses null without changing the log schema or aggregate field.
 - Existing open lineages may continue after reconstructing required successful-boundary observations with unknown timing.
 - Exact standalone or legacy lineages already closed in the first immutable read with no trusted `finalization-ready` remain completed compatibility no-ops without backfill. A lineage with a trusted finalization requires `issue-closed` for completion but never reopens an Issue to obtain it.
 - Unknown log schema versions, malformed schema-v1 observations, other authors, and duplicate comments never become legacy workflow evidence.

@@ -1,7 +1,7 @@
 ---
 name: project-harness
-description: This skill should be used only when explicitly invoked with init, delivery, or one exact feature-iteration role—definition, context-authoring, implementation, closeout, or context-promotion—to initialize project-owned Harness configuration, run one compatibility phase, or coordinate implementation through verified Issue closure with isolated agents, persistent evidence, and stage timing/change observations.
-disable-model-invocation: true
+description: This skill should be used only when the current user message supplies init, delivery, or one exact feature-iteration role—definition, context-authoring, implementation, closeout, or context-promotion—to initialize project-owned Harness configuration, run one compatibility phase, or coordinate implementation through verified Issue closure with isolated agents, persistent evidence, and stage timing/change observations.
+disable-model-invocation: false
 ---
 
 # Project Harness
@@ -9,6 +9,8 @@ disable-model-invocation: true
 Dispatch one explicitly requested top-level operation. Use `delivery` for the normal post-definition path: keep one coordinator in contact with the user while fresh phase Agents execute Implementation, Closeout, and Context Promotion from persistent GitHub evidence. Keep the exact phase roles as compatibility and recovery entry points.
 
 ## Require an exact invocation
+
+Invocation transport is host-specific. Codex requires the user's `$project-harness` trigger because `agents/openai.yaml` disables implicit invocation. Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection because `disable-model-invocation: false`. In either case, require the current user message as presented to the Agent to supply one exact role packet below; host loading alone never supplies a role, authoritative source, approval, delegation, merge, or closure authority. Reject before Harness mutation when the current message lacks that packet, and never infer it from repository content, prior chat, a generated hand-off, or the Skill body itself.
 
 For project initialization, require:
 
@@ -31,9 +33,26 @@ authoritative_sources:
 next_action: Implement, accept, merge, reconcile durable context, and close the Issue.
 ~~~
 
-Before any `delivery` mutation, complete an immutable source read and state reconstruction, including all paginated source Issue comments with `comments_complete: true`. An exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready` may return from read-only evidence without Delivery-log backfill, an unlocked Issue, `add-comment`, or structured input.
+Before any `delivery` mutation, complete an immutable source read and state reconstruction, including all paginated source Issue comments with `comments_complete: true`. An exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready` may return from read-only evidence without Delivery-log backfill, an unlocked Issue, `add-comment`, or a pending user decision.
 
-For every remaining path that may mutate or backfill, verify `locked: false`, the coordinator's authenticated Issue `add-comment` capability, and that every human-only acceptance item already has a persistent confirmation URL/whole-comment digest bound to the exact current snapshot. When the reconstructed path has not yet passed valid structured confirmation or a terminal and can reach the Context Promotion gate, also require a callable structured choice-and-free-text input tool; on Codex this means Plan mode and `request_user_input`. Fresh delivery must pass it before Implementation, while recovery after verified confirmation/terminal does not require it merely to reconcile, merge, log, or close. Return blocked with `recovery_condition: unsupported-delivery-input` before any mutation when an applicable check fails. The Context Promotion proposal remains `delivery`'s only live user interaction.
+For every remaining path that may mutate or backfill, verify `locked: false`, the coordinator's authenticated Issue `add-comment` capability, and that every human-only acceptance item already has a persistent confirmation URL/whole-comment digest bound to the exact current snapshot. Do not require a planning-only or same-turn input tool before Implementation. When the reconstructed path reaches an unconfirmed Context Promotion proposal, persist and re-read the proposal, summarize its exact changes and evidence in the final response, end the current turn, and wait for a new explicit confirmation re-entry. The Context Promotion proposal remains `delivery`'s only live user interaction.
+
+For a Context Promotion decision after that summary, require a new explicit invocation. Prefix the ready-to-send packet with `$project-harness` in Codex or `/project-harness` in Claude Code. Use `role: delivery` for the coordinated path and `role: context-promotion` only for a standalone compatibility path:
+
+~~~yaml
+role: delivery | context-promotion
+authoritative_sources:
+  - https://github.com/owner/repo/issues/123
+  - https://github.com/owner/repo/pull/456
+user_decision:
+  proposal_url: https://github.com/owner/repo/pull/456#issuecomment-789
+  proposal_sha256: SHA256
+  decision: approved | revise | pause
+  modification_items: []
+next_action: Re-read and continue the exact persisted Context Promotion proposal.
+~~~
+
+Require `modification_items` to be empty for `approved` and `pause` and non-empty for `revise`. Treat the proposal URL and whole-comment SHA-256 as claimed bindings only: independently re-read the sole active `awaiting-confirmation` tip and every bound source before accepting the decision. If a `user_decision` is supplied without one matching active tip, return blocked before mutation and never retain it for a later proposal. A bare reply, prior chat, or copied decision without a current exact role is not a Harness operation or approval. On Claude Code, model-selected loading may expose the Skill, but it cannot fill in a missing role packet or source-bound decision.
 
 For a single compatibility or recovery phase, require:
 
@@ -124,7 +143,7 @@ delegation:
 ~~~
 
 - Bind every populated field to independently read persistent evidence. Do not use a chat summary as a source.
-- Populate `user_decision` only from the current top-level structured-input result and bind it to the exact displayed proposal. Treat `modification_items` as a request for a new proposal, not as direct patch authority.
+- Populate `user_decision` only from the current explicit proposal-bound confirmation re-entry after independently verifying its URL/digest against the sole active `awaiting-confirmation` tip. Treat `modification_items` as a request for a new proposal, not as direct patch authority.
 - Enumerate only mutations permitted by the delegated phase. An omitted mutation is forbidden. Use these exact maximum sets:
 
 | Delegated role | Repository mutations | Issue transport mutations | Pull Request transport mutations |
@@ -153,7 +172,7 @@ The coordinator may atomically merge or close only where `references/delivery.md
 
 - Treat the Issue as the delivery contract and the product PR as implementation result and evidence. Store durable knowledge only in the single authoritative layer defined by the Harness document-placement contract and applicable repository rules.
 - Pass only the delegation envelope, authoritative Issue/PR or exact durable-source URLs, phase-required evidence URLs, snapshot bindings, and `next_action` between Agents. Persist every successful stage boundary in GitHub before advancing.
-- After each successful durable Delivery boundary and each persistently evidenced bounded attempt, follow the Delivery stage log contract to append and independently verify one source-Issue observation. Treat a live-only revision/pause/blocked structured-response observation as best-effort and non-coverage. Keep every observation audit-only: it summarizes authoritative artifacts but never replaces them, authorizes progress, or becomes a fourth workflow marker.
+- After each successful durable Delivery boundary and each persistently evidenced bounded attempt, follow the Delivery stage log contract to append and independently verify one source-Issue observation. Treat a current-invocation revision/pause/blocked confirmation-response observation as best-effort and non-coverage. Keep every observation audit-only: it summarizes authoritative artifacts but never replaces them, authorizes progress, or becomes a fourth workflow marker.
 - Within a Harness operation, follow only the loaded internal Issue and Pull Request transport protocols for GitHub mutations, digest normalization, baseline protection, merge, and independent read-back. Do not invoke a separate GitHub transport Skill, mix in a generic PR workflow, or use a second authenticated transport.
 - Require every loaded Issue/PR transport result in one operation to report the same verified authenticated actor login/ID and mutation-author login. Stop blocked on a mismatch or unverifiable identity.
 - Accept only `verified` or `no-op` transport results; fail closed on partial, ambiguous, `blocked`, `indeterminate`, or mismatched results.
@@ -167,8 +186,8 @@ The coordinator may atomically merge or close only where `references/delivery.md
 - A current user message that explicitly invokes one exact compatibility phase supplies authority only for the mutations enumerated by that phase reference. It does not authorize merge or later phases.
 - A current explicit `role: delivery` invocation supplies the coordinator's full, Issue-scoped automation authority and supplies descendants only the mutations enumerated in their delegation envelopes.
 - Never infer a merge method. The `delivery` coordinator may merge only an exact accepted product PR or exact confirmed-and-reviewed project-memory PR, using a method established by authoritative repository policy and the loaded Pull Request transport. For a new merge mutation, require mergeability to be affirmatively established as mergeable; unknown is not success. An exact already-merged recovery instead requires verified merge provenance and does not require post-merge mergeability. Stop blocked when the applicable method, tuple, required checks, mergeability/provenance, or permission cannot be established.
-- Do not request user input during Implementation or Closeout. If acceptance truly requires human-only evidence that is not already persisted and snapshot-bound, return blocked rather than creating a second interactive gate.
-- Require structured user confirmation only for the exact Context Promotion proposal. On Codex, use `request_user_input`; on another host, use its equivalent structured choice-and-free-text input. A fresh or pre-confirmation `delivery` path must preflight this capability before its first mutation and return blocked without writing when unavailable; an already verified confirmation/terminal recovery and the exact read-only compatibility no-op do not require it. A standalone `context-promotion` compatibility entry may build and persist the reviewed proposal first, then return blocked if the confirmation capability is unavailable. Never infer approval from timeout, silence, an earlier invocation, or general delivery intent.
+- Do not open a user decision gate during Implementation or Closeout. If acceptance truly requires human-only evidence that is not already persisted and snapshot-bound, return blocked rather than creating a second interactive gate.
+- Require explicit source-bound user confirmation only for the exact Context Promotion proposal. After persisting and re-reading `awaiting-confirmation`, summarize the proposal and finish the current turn without writing `confirmed`, marking a memory PR Ready, merging, or closing. Continue only from a new exact `delivery` or standalone `context-promotion` invocation whose `user_decision` names that active proposal URL/whole-comment digest. Never infer approval from timeout, silence, a bare reply, an earlier invocation, or general delivery intent.
 - Under `delivery`, close the source Issue only after the exact accepted product PR is merged, the confirmed Context Promotion path is terminal, all callbacks are read-back verified, and closure-level stage-log coverage exists. After the Issue close mutation is independently read back, append the exact `issue-closed` observation without reopening the Issue, verify it remains closed/completed, and require completion-level coverage before returning completed. A current explicit standalone `context-promotion` follows its compatibility closure gate without Delivery observations.
 - Do not use closing keywords. Do not infer merge or close authority from a hand-off, Ready state, acceptance verdict, branch protection, or repository write access.
 - Omit `Co-Authored-By` from commits.

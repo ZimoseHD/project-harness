@@ -21,7 +21,7 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 ## Enforce the phase boundary
 
 - Start only from an explicit Issue URL and either a current standalone Implementation invocation or a host-provenance-bound delegation from the current explicit `delivery` invocation.
-- Treat a current user's explicit `$project-harness` invocation with `role: implementation` as authority to modify product code and tests, create or resume one task branch, commit, push, and create or update one Draft PR. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources. Do not derive authority from an automatic route, serialized envelope, ordinary hand-off, ordinary implementation request, or prior run.
+- Treat the current user message's exact host-valid `role: implementation` packet under the root Skill's invocation-adapter contract as authority to modify product code and tests, create or resume one task branch, commit, push, and create or update one Draft PR. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources. Do not derive authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary implementation request, or prior run.
 - Keep the Issue as the only delivery contract.
 - Treat the Issue implementation plan as a non-binding starting prediction.
 - Preserve model autonomy over exploration, code structure, task decomposition, sub-agents, commit cadence, debugging, and risk-proportionate test selection.

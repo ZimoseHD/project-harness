@@ -10,7 +10,7 @@
 
 本仓库管理的是工作范式本身，包括：
 
-- Skill 的显式调用契约、单阶段调度和多 Agent 交付编排；
+- Skill 的精确调用契约、单阶段调度和多 Agent 交付编排；
 - `init` 初始化操作、五个特性迭代阶段以及 `delivery` 多 Agent 编排入口；
 - GitHub Issue 与 Product PR 的文档契约；
 - GitHub Issue / Pull Request 的内部原子传输协议；
@@ -25,7 +25,7 @@
 - 某次需求、Issue、PR、执行状态或项目记忆的存储位置；
 - 消费项目 `.project-harness/config.yaml` 的托管位置。
 
-仓库的主要交付物是 `project-harness/` 目录。维护该目录是在演进 Skill；除非用户通过宿主对应语法显式调用该 Skill（Codex 为 `$project-harness`，Claude Code 为 `/project-harness`）并提供规定输入，否则不得把普通的仓库维护任务误判为某个 Harness 运行阶段。
+仓库的主要交付物是 `project-harness/` 目录。维护该目录是在演进 Skill；不得把普通仓库维护任务误判为某个 Harness 运行阶段。运行时必须由当前用户消息提供规定的精确角色输入；Codex 还要求 `$project-harness` 显式触发，Claude Code 可由 `/project-harness` 显式触发，也可在 `disable-model-invocation: false` 时由宿主按相关性加载，但宿主加载本身不构成角色、授权或 mutation authority。
 
 ## 工作范式
 
@@ -33,13 +33,13 @@
 
 `definition` → 按需 `context-authoring` → `delivery`
 
-`delivery` 在一次显式调用中由协调 Agent 自动编排：
+`delivery` 由显式调用启动并由协调 Agent 自动编排；除 Context Promotion 的 source-bound 用户确认门会按下述规则跨回合暂停外，阶段迁移无需用户介入：
 
 `implementation` → `closeout` → 产品 PR 合并 → `context-promotion` → 按需项目记忆 PR 合并 → Issue 关闭
 
 `implementation`、`closeout` 和 `context-promotion` 仍是精确的兼容/恢复入口。它们保留各自阶段边界，不自动获得 `delivery` 的合并权限。`external-review` 仍是 `context-authoring` 及兼容阶段入口的停止和交接目的地，不是可执行角色。
 
-Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并在角色边界停止。`delivery` 协调 Agent 不得代行阶段语义，而应自动创建隔离的阶段 Agent、消费经持久证据绑定的最小 hand-off，并在相同顶层调用中推进后续阶段；不得要求用户为正常阶段迁移手工创建新会话。独立 Reviewer 和每轮重新审查同样使用新的隔离 Agent 上下文。聊天摘要、普通 hand-off 或隐式记忆不能补全权威事实和写权限。
+Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并在角色边界停止。`delivery` 协调 Agent 不得代行阶段语义，而应自动创建隔离的阶段 Agent、消费经持久证据绑定的最小 hand-off，并在相同顶层调用中推进后续阶段；唯一例外是 Context Promotion 的用户确认门：协调 Agent 持久化并总结精确提案后结束当前回合，等待用户携带角色、提案 URL/整段评论 SHA-256 摘要和决策显式 re-entry。不得要求用户为其他正常阶段迁移手工创建新会话。独立 Reviewer 和每轮重新审查同样使用新的隔离 Agent 上下文。聊天摘要、普通 hand-off 或隐式记忆不能补全权威事实和写权限。
 
 `delivery` 协调 Agent 在每个有持久证据的受界定尝试或成功边界后，把耗时质量、分域修改项预览和证据绑定为 Source Issue 上的版本化阶段观察。观察仅用于审计和统计，不是第四个 workflow marker，不能充当状态恢复、授权、PASS、合并或语义关闭证据；完整观察覆盖只是 Delivery 自身的合规完成门禁。实时运行可记录单调时钟实测耗时，恢复与补录不得伪造历史时长。Issue 关闭后还要追加 `issue-closed` 观察并确认 Issue 仍保持关闭；若评论被锁定，只能保留关闭状态并恢复日志，禁止重开。
 
@@ -50,7 +50,7 @@ Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并�
 | 路径 | 唯一职责 |
 | --- | --- |
 | `project-harness/SKILL.md` | Skill 入口、精确角色调度、共享规则和跨阶段不变量 |
-| `project-harness/references/delivery.md` | `delivery` 顶层协调器、阶段恢复、受限委派、自动合并、结构化用户确认和最终关闭协议 |
+| `project-harness/references/delivery.md` | `delivery` 顶层协调器、阶段恢复、受限委派、自动合并、跨回合 source-bound 用户确认和最终关闭协议 |
 | `project-harness/references/delivery-evidence-contract.md` | Closeout 与 Context Promotion 跨阶段持久证据的唯一 schema、tuple/digest 绑定、前驱链、active-tip 与 legacy dual-read 契约；不拥有阶段行为或写权限 |
 | `project-harness/references/delivery-log-contract.md` | `delivery` 阶段观察的唯一 schema、计时质量、修改项、幂等身份、隐私与覆盖规则 |
 | `project-harness/references/init.md` | 消费项目 Harness 配置的创建与校验协议 |
@@ -66,7 +66,7 @@ Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并�
 
 ## 必须保持的设计不变量
 
-1. 只接受 `init`、`definition`、`context-authoring`、`delivery`、`implementation`、`closeout`、`context-promotion` 这些精确角色，不推断、不设别名、不隐式调用。
+1. 只接受当前用户消息明确提供的 `init`、`definition`、`context-authoring`、`delivery`、`implementation`、`closeout`、`context-promotion` 这些精确角色及其规定输入，不推断、不设别名。Codex 由宿主强制 `$project-harness` 显式调用；Claude Code 允许 `/project-harness` 或模型按相关性加载，但加载本身不补全缺失角色、权威来源或 mutation authority。
 2. Issue 是交付合同，Product PR 是实现结果和证据载体；持久知识只进入规定的单一权威层。
 3. 每个阶段 Agent 只执行一个操作。`delivery` 协调 Agent 只做编排、原子集成和用户交互；阶段迁移、独立 Reviewer 和重新审查使用新的隔离 Agent。
 4. 权威 URL、当前仓库事实和显式授权不可由目录名、仓库状态、历史会话或普通 hand-off 猜测。内部委派只能从当前显式 `delivery` 调用逐层缩小，并绑定精确来源、快照、持久证据和允许的 mutation。
@@ -86,7 +86,7 @@ Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并�
 - Markdown 规范化及 SHA-256 摘要算法；
 - 各阶段及 `delivery` 的权威输入、持久输出、权限边界、自动恢复和停止位置；
 - Closeout verdict/Issue callback/eligibility registration 与 Context Promotion 提案、Reviewer PASS、schema-v2 confirmation/Ready/terminal 回调的字段、marker、tuple/digest 绑定、前驱关系、active-tip 和 legacy dual-read 行为；
-- Context Promotion 结构化用户确认和 Issue 关闭顺序；
+- Context Promotion 显式 source-bound 用户确认、跨回合停止/恢复和 Issue 关闭顺序；
 - Delivery log 的 schema 版本、阶段/边界枚举、`attempt_id`、`transition_key` 算法、计时与分域修改质量、修改项上限、隐私边界、三层覆盖和关闭后观察规则。
 
 不得静默改变兼容性表面。确需变更时，应先说明影响范围和迁移策略，同步所有生产者、消费者、示例及测试；marker 或已持久化 schema 的变更还必须具备单独批准的兼容迁移和验证过的 dual-read 行为。
@@ -99,7 +99,7 @@ Skill 运行时的每个阶段 Agent 必须一次只执行一个精确角色并�
 4. **本地验证。** 运行现有测试和 Skill 结构校验，确认引用完整、失败路径保持 fail closed，且没有临时文件或平台元数据进入 Skill。
 5. **发布源版本。** 将通过验证的 `project-harness/` 发布到 CC-Switch 当前跟踪的稳定分支。兼容性变更同时记录迁移说明；若项目采用 Git tag 或 Release，则仅把它们作为审计记录，不在多个文件中维护平行版本号。
 6. **执行更新。** 在 CC-Switch 中刷新来源，确认 `project-harness` 出现更新，执行更新，并同步或启用到 Codex 与 Claude。
-7. **双端验收。** 分别在新的 Codex 和 Claude 会话中确认 Skill 可发现、只能显式调用、精确角色输入能进入对应操作，缺失或错误角色会保守拒绝。任一端失败都不算发布完成；修复后从第 2 步重新执行。
+7. **双端验收。** 分别在新的 Codex 和 Claude 会话中确认 Skill 可发现：Codex 只能通过 `$project-harness` 显式调用；Claude 的 `/project-harness` 可用，且 `disable-model-invocation: false` 允许按相关性加载。两端都必须只让当前消息中的精确角色输入进入对应操作，缺失或错误角色会保守拒绝。任一端失败都不算发布完成；修复后从第 2 步重新执行。
 8. **记录结果。** 记录发布来源、验证结果、兼容性影响和遗留风险。
 
 修改 Markdown 协议时，精确保留机器可识别的角色名、字段名、状态值、marker、模板标题和代码块结构。修改 Python 时优先使用标准库、类型清晰的纯函数和正常路径/失败路径成对测试，除非任务明确批准新的依赖或副作用。
@@ -120,7 +120,7 @@ python3 -B -m unittest discover -s project-harness/scripts -p 'test_*.py' -v
 - 共享契约只有一个权威定义，引用方没有形成第二份 schema；
 - marker、配置 schema、digest 和 transport 状态的生产者与消费者一致；
 - `delivery` 可从每个已持久状态幂等恢复，内部 delegation 不会扩权，且阶段 Agent / sub-subagent 仍保持职责隔离；
-- 产品 PR 与项目记忆 PR 只在精确门禁后合并，Context Promotion 的变更明细只在结构化用户确认后进入集成基线，Issue 只在终态回读后关闭；
+- 产品 PR 与项目记忆 PR 只在精确门禁后合并，Context Promotion 的变更明细只在显式 source-bound 用户确认后进入集成基线，Issue 只在终态回读后关闭；
 - Delivery 阶段观察只由协调 Agent 追加，实时耗时与恢复补录可区分，修改项有界且不泄露原始用户输入；覆盖检查读取完整分页评论并保持观察与流程权威分离，Issue 关闭后记录精确关闭耗时/变更且绝不为补日志重开；
 - 新增或修改的失败路径仍然保守关闭；
 - 示例输入、输出和 `agents/openai.yaml` 没有承诺不存在的隐式行为；

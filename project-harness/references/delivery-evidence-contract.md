@@ -319,7 +319,7 @@ The proposal, review, eligibility, authority base, source tuple, memory tuple, a
 
 ### Confirmed callback
 
-After one current source-bound structured approval, write one top-level source product-PR comment containing the promotion marker and payload:
+After one current explicit source-bound approval re-entry, write one top-level source product-PR comment containing the promotion marker and payload:
 
 ~~~yaml
 schema_version: 2
@@ -348,7 +348,7 @@ changed_files: []
 
 `previous_comment_*` must bind the active `awaiting-confirmation` whole comment, `confirmed_revision` must equal its revision, and `proposal_kind` must equal it. Every evidence pair and tuple must equal the displayed proposal state and proposal artifact. Whenever that artifact includes a project-memory PR, every memory field and `changed_files` entry is required and exact; otherwise all are null/empty.
 
-Only the current live structured-input result may authorize creation of a confirmation. Under `delivery`, require the host-provenance-bound `user_decision`; standalone requires the result returned by the current structured-input call. A serialized packet, existing comment, silence, timeout, or general delivery intent cannot authorize it.
+Only the current user's explicit proposal-bound confirmation re-entry may authorize creation of a confirmation. Under `delivery`, require the host-provenance-bound `user_decision` derived from the current exact `role: delivery` invocation; standalone requires the same fields in the current exact `role: context-promotion` invocation. Re-read the sole active `awaiting-confirmation` whole comment and require its URL/digest to equal that decision before writing. A stored or relayed packet cannot authorize confirmation by itself. Without current host parent-child provenance and independent re-read, a bare reply, existing comment, or prior invocation is insufficient; silence, timeout, or general delivery intent cannot authorize it.
 
 ### No-promotion terminal
 
@@ -534,7 +534,7 @@ Dual-read an unversioned legacy `${marker_namespace}:context-promotion` callback
 
 Treat a callback that declares `schema_version: 2` but omits a required field, predecessor, or digest as malformed schema v2, never as legacy.
 
-An exact legacy terminal with an already closed Issue is a completed compatibility no-op after all independent verification. When the Issue remains open, reconstruct and persist the complete source-bound proposal artifact and fresh Reviewer PASS, then obtain current structured confirmation before any new merge or close:
+An exact legacy terminal with an already closed Issue is a completed compatibility no-op after all independent verification. When the Issue remains open, reconstruct and persist the complete source-bound proposal artifact and fresh Reviewer PASS, summarize and stop, then obtain a later current explicit source-bound confirmation re-entry before any new merge or close:
 
 - closure-only legacy `no-promotion` or `memory-pr-merged` uses `awaiting-confirmation` with `proposal_kind: legacy-reconciliation`, preserves the exact terminal outcome, and then appends `confirmed`; the historical terminal remains outcome evidence and no duplicate terminal is written;
 - if reassessment of legacy `no-promotion` finds a write, use `proposal_kind: write`, `revision_reason: legacy-reassessment`, bind the legacy callback through both predecessor/evidence pairs, and require the normal Ready → coordinator merge → current `memory-pr-merged` path;

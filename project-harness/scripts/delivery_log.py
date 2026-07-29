@@ -159,6 +159,10 @@ _FORBIDDEN_PERSISTED_KEYS = frozenset(
         "raw_user_input",
         "raw_user_response",
         "request_user_input_response",
+        "confirmation_reply",
+        "confirmation_response",
+        "user_decision",
+        "modification_items",
         "user_input",
         "user_response",
     }
@@ -1825,6 +1829,146 @@ def validate_observation(record: Mapping[str, Any]) -> list[str]:
                 errors.append(
                     "transition_key: does not match the durable transition identity"
                 )
+
+    return errors
+
+
+def validate_new_observation(record: Mapping[str, Any]) -> list[str]:
+    """Validate a record for a new split-turn protocol write.
+
+    ``validate_observation`` remains the schema-v1 reader and therefore accepts
+    historical same-turn confirmation timing and response/count combinations.
+    New writers must additionally satisfy the split-turn confirmation policy
+    enforced here.
+    """
+    errors = validate_observation(record)
+    if not isinstance(record, Mapping):
+        return errors
+
+    if record.get("user_wait_ms") is not None:
+        errors.append(
+            "user_wait_ms: new split-turn observations require null"
+        )
+
+    input_snapshot = record.get("input_snapshot")
+    target_boundary = (
+        input_snapshot.get("target_boundary")
+        if isinstance(input_snapshot, Mapping)
+        else None
+    )
+    source_bindings = (
+        input_snapshot.get("source_bindings")
+        if isinstance(input_snapshot, Mapping)
+        else None
+    )
+    source_tuples = _evidence_tuples(source_bindings)
+    is_confirmation_attempt = (
+        record.get("observation_kind") == "attempt"
+        and (
+            record.get("stage") == "context-confirmation"
+            or record.get("activity") == "confirm"
+            or target_boundary == "context-confirmed"
+        )
+    )
+    if is_confirmation_attempt:
+        if target_boundary != "context-confirmed":
+            errors.append(
+                "input_snapshot.target_boundary: new confirmation attempt "
+                "requires 'context-confirmed'"
+            )
+        if (
+            len(source_tuples) != 1
+            or source_tuples[0][0] != "proposal-callback"
+        ):
+            errors.append(
+                "input_snapshot.source_bindings: new confirmation attempt "
+                "requires exactly one proposal-callback binding"
+            )
+
+    output_snapshot = record.get("output_snapshot")
+    if isinstance(output_snapshot, Mapping):
+        response_kind = output_snapshot.get("response_kind")
+        result_kind = output_snapshot.get("result_kind")
+        modification_count = output_snapshot.get("modification_item_count")
+        if response_kind == "approved" or result_kind == "approved":
+            errors.append(
+                "output_snapshot.result_kind/response_kind: new approved "
+                "confirmation must use the context-confirmed boundary"
+            )
+        if (
+            isinstance(result_kind, str)
+            and result_kind in {"revision-requested", "paused"}
+            and response_kind != result_kind
+        ):
+            errors.append(
+                "output_snapshot.response_kind: new revision-requested or "
+                "paused result requires the matching response"
+            )
+        if isinstance(response_kind, str) and response_kind in {
+            "approved",
+            "revision-requested",
+            "paused",
+            "blocked",
+        }:
+            if (
+                output_snapshot.get("result_url") is not None
+                or output_snapshot.get("result_sha256") is not None
+            ):
+                errors.append(
+                    "output_snapshot.result_url/result_sha256: new "
+                    "confirmation response requires both null"
+                )
+            if response_kind != "approved" and (
+                output_snapshot.get("result_kind") != response_kind
+                or record.get("outcome") != response_kind
+            ):
+                errors.append(
+                    "output_snapshot.response_kind: new confirmation "
+                    "response must equal result_kind and outcome"
+                )
+            if record.get("change_quality") != {
+                "repository": "not-applicable",
+                "github": "not-applicable",
+                "context": "not-applicable",
+            }:
+                errors.append(
+                    "change_quality: new confirmation response requires all "
+                    "domains not-applicable"
+                )
+            change_summary = record.get("change_summary")
+            if not isinstance(change_summary, Mapping) or any(
+                (
+                    change_summary.get("repository_changes") != [],
+                    change_summary.get("github_mutations") != [],
+                    change_summary.get("context_changes") != [],
+                    change_summary.get("truncated") is not False,
+                    change_summary.get("omitted_count") != 0,
+                )
+            ):
+                errors.append(
+                    "change_summary: new confirmation response requires no "
+                    "reported mutations"
+                )
+        if (
+            isinstance(response_kind, str)
+            and response_kind in {"approved", "paused"}
+            and modification_count != 0
+        ):
+            errors.append(
+                "output_snapshot.modification_item_count: "
+                f"{response_kind} requires zero"
+            )
+        elif (
+            response_kind == "revision-requested"
+            and (
+                not _is_plain_integer(modification_count)
+                or modification_count < 1
+            )
+        ):
+            errors.append(
+                "output_snapshot.modification_item_count: "
+                "revision-requested requires a positive integer"
+            )
 
     return errors
 

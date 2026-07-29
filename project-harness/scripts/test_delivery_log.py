@@ -16,6 +16,7 @@ from delivery_log import (
     WRITE_BOUNDARIES,
     coverage,
     transition_key,
+    validate_new_observation,
     validate_observation,
 )
 
@@ -648,11 +649,20 @@ class DeliveryLogTests(unittest.TestCase):
         self.assertTrue(any("must both be null or both populated" in error for error in errors))
         self.assertTrue(any("must exactly equal" in error for error in errors))
 
-        source = evidence("proposal-artifact", f"{PRODUCT_PR_URL}#proposal", "6" * 64)
+        source = evidence(
+            "proposal-callback",
+            f"{PRODUCT_PR_URL}#proposal-callback",
+            "6" * 64,
+        )
         response = self.attempt(
             stage="context-confirmation",
             activity="confirm",
             outcome="paused",
+            change_quality={
+                "repository": "not-applicable",
+                "github": "not-applicable",
+                "context": "not-applicable",
+            },
             input_snapshot={
                 "target_boundary": "context-confirmed",
                 "source_bindings": [source],
@@ -664,13 +674,241 @@ class DeliveryLogTests(unittest.TestCase):
                 "response_kind": "paused",
                 "modification_item_count": 2,
             },
+            change_summary={
+                "repository_changes": [],
+                "github_mutations": [],
+                "context_changes": [],
+                "truncated": False,
+                "omitted_count": 0,
+            },
             evidence=[source],
         )
         self.assertEqual(validate_observation(response), [])
+        self.assertTrue(
+            any(
+                "paused requires zero" in error
+                for error in validate_new_observation(response)
+            )
+        )
+
+        response["output_snapshot"]["modification_item_count"] = 0  # type: ignore[index]
+        response["transition_key"] = transition_key(response)
+        self.assertEqual(validate_new_observation(response), [])
+
+        mutating_response = copy.deepcopy(response)
+        mutating_response["change_quality"] = {
+            "repository": "reconstructed",
+            "github": "reconstructed",
+            "context": "not-applicable",
+        }
+        mutating_response["change_summary"] = self.change_summary()
+        mutating_response["transition_key"] = transition_key(mutating_response)
+        self.assertEqual(validate_observation(mutating_response), [])
+        mutating_errors = validate_new_observation(mutating_response)
+        self.assertTrue(
+            any(
+                "all domains not-applicable" in error
+                for error in mutating_errors
+            )
+        )
+        self.assertTrue(
+            any(
+                "requires no reported mutations" in error
+                for error in mutating_errors
+            )
+        )
+
+        unbound = copy.deepcopy(response)
+        unbound["input_snapshot"]["source_bindings"] = []  # type: ignore[index]
+        unbound["evidence"] = []
+        unbound["transition_key"] = transition_key(unbound)
+        self.assertEqual(validate_observation(unbound), [])
+        self.assertTrue(
+            any(
+                "requires exactly one proposal-callback binding" in error
+                for error in validate_new_observation(unbound)
+            )
+        )
+
+        unbound_blocked = copy.deepcopy(unbound)
+        unbound_blocked["outcome"] = "blocked"
+        unbound_blocked["output_snapshot"]["result_kind"] = "blocked"  # type: ignore[index]
+        unbound_blocked["output_snapshot"]["response_kind"] = None  # type: ignore[index]
+        unbound_blocked["output_snapshot"]["modification_item_count"] = None  # type: ignore[index]
+        unbound_blocked["transition_key"] = transition_key(unbound_blocked)
+        self.assertEqual(validate_observation(unbound_blocked), [])
+        self.assertTrue(
+            any(
+                "new confirmation attempt requires exactly one "
+                "proposal-callback binding" in error
+                for error in validate_new_observation(unbound_blocked)
+            )
+        )
+
+        bound_blocked = copy.deepcopy(unbound_blocked)
+        bound_blocked["input_snapshot"]["source_bindings"] = [source]  # type: ignore[index]
+        bound_blocked["evidence"] = [source]
+        bound_blocked["transition_key"] = transition_key(bound_blocked)
+        self.assertEqual(validate_new_observation(bound_blocked), [])
+
+        wrong_binding = copy.deepcopy(response)
+        wrong_source = evidence(
+            "proposal-artifact",
+            f"{PRODUCT_PR_URL}#proposal",
+            "7" * 64,
+        )
+        wrong_binding["input_snapshot"]["source_bindings"] = [wrong_source]  # type: ignore[index]
+        wrong_binding["evidence"] = [wrong_source]
+        wrong_binding["transition_key"] = transition_key(wrong_binding)
+        self.assertEqual(validate_observation(wrong_binding), [])
+        self.assertTrue(
+            any(
+                "requires exactly one proposal-callback binding" in error
+                for error in validate_new_observation(wrong_binding)
+            )
+        )
+
+        wrong_target = copy.deepcopy(response)
+        wrong_target["input_snapshot"]["target_boundary"] = None  # type: ignore[index]
+        wrong_target["transition_key"] = transition_key(wrong_target)
+        self.assertEqual(validate_observation(wrong_target), [])
+        self.assertTrue(
+            any(
+                "requires 'context-confirmed'" in error
+                for error in validate_new_observation(wrong_target)
+            )
+        )
+
+        for mismatched_response, count in (
+            ("revision-requested", 1),
+            ("blocked", 0),
+        ):
+            with self.subTest(response_result_mismatch=mismatched_response):
+                mismatch = copy.deepcopy(response)
+                mismatch["output_snapshot"]["response_kind"] = mismatched_response  # type: ignore[index]
+                mismatch["output_snapshot"]["modification_item_count"] = count  # type: ignore[index]
+                mismatch["transition_key"] = transition_key(mismatch)
+                self.assertEqual(validate_observation(mismatch), [])
+                self.assertTrue(
+                    any(
+                        "must equal result_kind and outcome" in error
+                        for error in validate_new_observation(mismatch)
+                    )
+                )
+
+        approved_response = copy.deepcopy(response)
+        approved_response["outcome"] = "approved"
+        approved_response["output_snapshot"]["result_kind"] = "approved"  # type: ignore[index]
+        approved_response["output_snapshot"]["response_kind"] = "approved"  # type: ignore[index]
+        approved_response["transition_key"] = transition_key(approved_response)
+        self.assertEqual(validate_observation(approved_response), [])
+        self.assertTrue(
+            any(
+                "must use the context-confirmed boundary" in error
+                for error in validate_new_observation(approved_response)
+            )
+        )
+
+        for omitted_response in ("approved", "revision-requested", "paused"):
+            with self.subTest(omitted_response=omitted_response):
+                omission = copy.deepcopy(response)
+                omission["outcome"] = omitted_response
+                omission["output_snapshot"]["result_kind"] = omitted_response  # type: ignore[index]
+                omission["output_snapshot"]["response_kind"] = None  # type: ignore[index]
+                omission["output_snapshot"]["modification_item_count"] = None  # type: ignore[index]
+                omission["transition_key"] = transition_key(omission)
+                self.assertEqual(validate_observation(omission), [])
+                omission_errors = validate_new_observation(omission)
+                if omitted_response == "approved":
+                    self.assertTrue(
+                        any(
+                            "must use the context-confirmed boundary" in error
+                            for error in omission_errors
+                        )
+                    )
+                else:
+                    self.assertTrue(
+                        any(
+                            "requires the matching response" in error
+                            for error in omission_errors
+                        )
+                    )
+
+        for response_with_result, count in (
+            ("revision-requested", 1),
+            ("paused", 0),
+            ("blocked", 0),
+        ):
+            with self.subTest(non_null_response_result=response_with_result):
+                result = evidence(
+                    response_with_result,
+                    f"{PRODUCT_PR_URL}#{response_with_result}-result",
+                    "8" * 64,
+                )
+                invalid_result = copy.deepcopy(response)
+                invalid_result["outcome"] = response_with_result
+                invalid_result["output_snapshot"]["result_kind"] = response_with_result  # type: ignore[index]
+                invalid_result["output_snapshot"]["result_url"] = result["url"]  # type: ignore[index]
+                invalid_result["output_snapshot"]["result_sha256"] = result["sha256"]  # type: ignore[index]
+                invalid_result["output_snapshot"]["response_kind"] = response_with_result  # type: ignore[index]
+                invalid_result["output_snapshot"]["modification_item_count"] = count  # type: ignore[index]
+                invalid_result["evidence"] = sorted(
+                    [source, result],
+                    key=lambda item: (item["kind"], item["url"], item["sha256"]),
+                )
+                invalid_result["transition_key"] = transition_key(invalid_result)
+                self.assertEqual(validate_observation(invalid_result), [])
+                self.assertTrue(
+                    any(
+                        "new confirmation response requires both null" in error
+                        for error in validate_new_observation(invalid_result)
+                    )
+                )
+
+        revision = copy.deepcopy(response)
+        revision["outcome"] = "revision-requested"
+        revision["output_snapshot"]["result_kind"] = "revision-requested"  # type: ignore[index]
+        revision["output_snapshot"]["response_kind"] = "revision-requested"  # type: ignore[index]
+        revision["transition_key"] = transition_key(revision)
+        self.assertTrue(
+            any(
+                "revision-requested requires a positive integer" in error
+                for error in validate_new_observation(revision)
+            )
+        )
+        revision["output_snapshot"]["modification_item_count"] = 1  # type: ignore[index]
+        revision["transition_key"] = transition_key(revision)
+        self.assertEqual(validate_new_observation(revision), [])
+
+        approved = copy.deepcopy(response)
+        approved["outcome"] = "approved"
+        approved["output_snapshot"]["result_kind"] = "approved"  # type: ignore[index]
+        approved["output_snapshot"]["response_kind"] = "approved"  # type: ignore[index]
+        approved["output_snapshot"]["modification_item_count"] = 1  # type: ignore[index]
+        approved["transition_key"] = transition_key(approved)
+        self.assertTrue(
+            any(
+                "approved requires zero" in error
+                for error in validate_new_observation(approved)
+            )
+        )
+
         response["output_snapshot"]["response_kind"] = "raw-answer"  # type: ignore[index]
         self.assertTrue(
             any("unknown response" in error for error in validate_observation(response))
         )
+        for malformed_response in ([], {}):
+            with self.subTest(
+                nested_response=type(malformed_response).__name__,
+            ):
+                malformed = copy.deepcopy(response)
+                malformed["output_snapshot"]["response_kind"] = malformed_response  # type: ignore[index]
+                self.assertTrue(
+                    any(
+                        "unknown response" in error
+                        for error in validate_new_observation(malformed)
+                    )
+                )
 
     def test_timing_and_attempt_id_quality_rules(self) -> None:
         reconstructed = self.observation(
@@ -720,6 +958,12 @@ class DeliveryLogTests(unittest.TestCase):
             user_wait_ms=2000,
         )
         self.assertEqual(validate_observation(confirmation), [])
+        self.assertTrue(
+            any(
+                "new split-turn observations require null" in error
+                for error in validate_new_observation(confirmation)
+            )
+        )
         confirmation["user_wait_ms"] = 2501
         self.assertTrue(
             any("must not exceed" in error for error in validate_observation(confirmation))
@@ -803,6 +1047,15 @@ class DeliveryLogTests(unittest.TestCase):
             any("raw_user_input_persisted" in error for error in validate_observation(raw))
         )
         raw["output_snapshot"] = {"raw_user_response": "verbatim"}
+        self.assertTrue(
+            any("raw user input" in error for error in validate_observation(raw))
+        )
+        raw["output_snapshot"] = {
+            "confirmation_response": {
+                "decision": "revise",
+                "modification_items": ["verbatim"],
+            }
+        }
         self.assertTrue(
             any("raw user input" in error for error in validate_observation(raw))
         )
@@ -982,6 +1235,16 @@ class DeliveryLogTests(unittest.TestCase):
         )
 
     def test_malformed_boundary_values_fail_closed_without_crashing(self) -> None:
+        for malformed_record in (None, [], "bad"):
+            with self.subTest(
+                validator="new-write",
+                malformed=type(malformed_record).__name__,
+            ):
+                self.assertEqual(
+                    validate_new_observation(malformed_record),  # type: ignore[arg-type]
+                    ["record: must be an object"],
+                )
+
         for boundary in ("finalization-ready", "issue-closed"):
             for malformed in ([], {}):
                 with self.subTest(boundary=boundary, malformed=type(malformed).__name__):

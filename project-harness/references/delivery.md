@@ -22,7 +22,7 @@ Coordinate one finalized Issue from Implementation through independent Closeout,
 
 ## Enforce the coordinator boundary
 
-- Keep one Delivery Coordinator accountable for dispatch, source re-read, transition validation, merge gates, structured user interaction, Delivery stage observations, terminal reconciliation, and the final result.
+- Keep one Delivery Coordinator accountable for dispatch, source re-read, transition validation, merge gates, the cross-turn proposal summary and explicit decision relay, Delivery stage observations, terminal reconciliation, and the final result.
 - Do not implement product code, repair a failed acceptance, issue an acceptance verdict, classify durable knowledge, edit project-memory files, or review a phase's own work in the coordinator.
 - Start a fresh phase Agent for every Implementation attempt, Closeout round, Context Promotion proposal revision, and terminal reconciliation. Supply only the scoped delegation envelope from the root Skill and persistent source URLs.
 - Let a phase Agent create sub-agents or sub-subagents under the shared narrowing and ownership rules. Never treat nested delegation as authority to cross a phase boundary.
@@ -30,7 +30,7 @@ Coordinate one finalized Issue from Implementation through independent Closeout,
 - Validate every Closeout and Context Promotion artifact against `references/delivery-evidence-contract.md`. Use that contract only for persistent schema, tuple/digest, predecessor, active-tip, and legacy dual-read checks; never use it to perform phase reasoning or produce a phase artifact.
 - Never ask the user to create a new session for a normal transition. The coordinator consumes the persistent hand-off and creates the next isolated Agent itself.
 - Never merge from a phase Agent. Perform the two permitted merge gates only in the coordinator through the loaded Pull Request transport.
-- Never request user input outside the Context Promotion confirmation gate.
+- Never open a user decision gate outside Context Promotion. That gate is the only normal point where `delivery` ends a turn and waits for an explicit source-bound re-entry.
 - Write Delivery stage observations only from the coordinator, after independently verifying the result they summarize. Never delegate this audit mutation or consume a log as phase evidence.
 
 Return completed, return-to-definition, or blocked.
@@ -49,24 +49,25 @@ next_action: Implement, accept, merge, reconcile durable context, and close the 
 
 Accept exact related product PR, acceptance comment, promotion callback, or project-memory PR URLs on re-entry only as search hints. Re-read them and prove their relationship to the Issue before use. Reject chat summaries as delivery state or authority.
 
+For a confirmation re-entry, also require the root Skill's exact `user_decision` block in the current explicit `role: delivery` invocation. Treat its proposal URL/digest as claimed bindings, not trusted state. Reject a missing role, bare approval, ambiguous decision, `approved` or `pause` with modification items, and `revise` without modification items before any confirmation mutation. When any `user_decision` is present but no sole active `awaiting-confirmation` tip matches it, return blocked before mutation and never carry that response forward.
+
 Before the first mutation, perform the immutable reads and workflow reconstruction in the next section. That read must include the complete source Issue and every paginated top-level comment with `comments_complete: true`.
 
-If reconstruction proves the exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready`, return completed from read-only evidence. This path performs no mutation or Delivery-log backfill and does not require an unlocked Issue, `add-comment`, or structured-input capability.
+If reconstruction proves the exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready`, return completed from read-only evidence. This path performs no mutation or Delivery-log backfill and does not require an unlocked Issue, `add-comment`, or a pending user decision.
 
 For every remaining path that may mutate or backfill, complete this state-aware preflight before the first mutation:
 
 1. Require the source Issue to report `locked: false` and the same authenticated Issue transport to expose the coordinator's `add-comment` capability needed for Delivery observations. Do not unlock an Issue.
 2. Inspect every acceptance item for visual, business, real-device, external-system, or other human-only evidence. Require each applicable item already to have a persistent explicit confirmation URL and whole-comment digest bound to the exact current acceptance snapshot. If no product snapshot exists yet, such a confirmation cannot be snapshot-bound.
-3. When the reconstructed remaining path has not yet passed a valid source-bound structured confirmation or terminal and can reach the Context Promotion confirmation gate, verify that the top-level coordinator has a callable structured choice-and-free-text input capability. On Codex, it must be `request_user_input` in Plan mode. A fresh delivery must pass this check before its first Implementation mutation. A recovery after an already verified confirmation or terminal does not require the tool merely to reconcile, merge, log, or close.
 
-Return blocked with `recovery_condition: unsupported-delivery-input` before Implementation and before any mutation when an applicable preflight check fails. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction in `delivery` remains the Context Promotion confirmation gate.
+Return blocked before Implementation and before any mutation when an applicable preflight check fails. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction in `delivery` remains the Context Promotion confirmation gate. Do not require a planning-only or same-turn input tool; run Implementation and repository mutations in a code-capable mode.
 
 Treat the explicit `delivery` invocation as authority, for this one Issue only, to:
 
 - delegate the phase mutations enumerated by Implementation, Closeout, and Context Promotion;
 - repair Implementation after a persisted Closeout FAIL;
 - merge the exact accepted product PR into `develop`;
-- relay one or more source-bound Context Promotion confirmation rounds;
+- summarize one or more source-bound Context Promotion proposals, stop at each unconfirmed revision, and relay a later explicit decision re-entry;
 - merge the exact user-confirmed and independently reviewed project-memory PR into `develop`;
 - append exact read-back-verified Delivery stage observations to the source Issue;
 - write terminal callbacks and close the source Issue after all terminal conditions hold.
@@ -103,24 +104,25 @@ Use this recovery matrix:
 | Current Closeout PASS, Issue callback, eligibility registration, and Ready product PR | Enter the product merge gate |
 | Current-format exact accepted product PR already merged into `develop`, with no terminal promotion state | Enter the product merge gate's already-merged `no-op` recovery; dispatch Context Promotion only after the transport verifies the complete current gate evidence, method, provenance, checks, and tuple |
 | Historically merged product PR with an exact legacy eligibility lineage | Use only the explicit read-only legacy integration exception: verify every field the historical producer promised plus current merged head/base identity, allowed actual method, merge provenance, and known successful head checks; then dispatch Context Promotion with computed legacy comment digests and require schema-v2 proposal/review/confirmation migration before any new memory merge or Issue close |
-| `awaiting-confirmation` promotion callback | Re-read and relay that exact proposal |
+| `awaiting-confirmation` promotion callback without a valid current `user_decision` | Re-read and summarize that exact proposal, then finish the turn with the source-bound re-entry packet |
+| `awaiting-confirmation` promotion callback plus a valid current `user_decision` bound to that sole active tip | Re-read every bound source and handle the exact approval, revision, or pause |
 | `confirmed` no-write proposal without terminal callback | Dispatch Context Promotion terminal reconciliation |
-| `confirmed` no-write proposal whose authority base or bound current-authority source drifted | Dispatch Context Promotion to invalidate the confirmation, rebuild/review the five-category proposal, and return to structured confirmation |
+| `confirmed` no-write proposal whose authority base or bound current-authority source drifted | Dispatch Context Promotion to invalidate the confirmation, rebuild/review the five-category proposal, and return to a new cross-turn confirmation summary |
 | `confirmed` project-memory proposal with a Draft PR | Dispatch Context Promotion to mark the exact reviewed tuple Ready and persist `memory-pr-ready` |
 | Confirmed, reviewed, Ready project-memory PR without a valid `memory-pr-ready` callback | Dispatch a fresh Context Promotion reconciler; do not merge |
 | Valid `memory-pr-ready` callback plus the unchanged confirmed/reviewed Ready project-memory PR | Enter the project-memory merge gate |
-| Ready project-memory PR whose required checks fail because of a permitted context file or validation defect | Dispatch Context Promotion to convert it to Draft, repair within promotion scope, persist a new artifact and fresh review, and return to the same structured confirmation gate |
-| Ready project-memory PR whose confirmed title/Body/head/base tuple drifted, base advanced, or mergeability is false because of a repairable promotion-scope conflict | Dispatch Context Promotion to convert it to Draft, rebase/repair within scope, persist a new artifact and fresh review, and return to structured confirmation; block when safe repair exceeds promotion authority |
+| Ready project-memory PR whose required checks fail because of a permitted context file or validation defect | Dispatch Context Promotion to convert it to Draft, repair within promotion scope, persist a new artifact and fresh review, and return to a new cross-turn confirmation summary |
+| Ready project-memory PR whose confirmed title/Body/head/base tuple drifted, base advanced, or mergeability is false because of a repairable promotion-scope conflict | Dispatch Context Promotion to convert it to Draft, rebase/repair within scope, persist a new artifact and fresh review, and return to a new cross-turn confirmation summary; block when safe repair exceeds promotion authority |
 | Ready project-memory PR whose checks or mergeability are pending/unknown, or checks fail only because of external infrastructure | Wait/re-read when supported; otherwise return blocked without changing the confirmed tuple |
-| Exact unmerged legacy `memory-pr-ready` without a schema-v2 confirmation/migration callback | Dispatch Context Promotion to reconstruct, review, and confirm it before any merge |
+| Exact unmerged legacy `memory-pr-ready` without a schema-v2 confirmation/migration callback and with no schema-v2 `awaiting-confirmation` tip | Dispatch Context Promotion to reconstruct and review it, persist the schema-v2 proposal, summarize it, and end the proposal turn; handle confirmation only in a later bound decision turn |
 | Current-format project-memory PR merged without a matching `memory-pr-merged` callback | Enter the project-memory merge gate's already-merged `no-op` recovery; dispatch a fresh Context Promotion reconciler only after the transport verifies the complete current gate evidence, method, provenance, checks, and tuple |
-| Exact legacy terminal with an open Issue but no schema-v2 `legacy-reconciliation` confirmation | Dispatch Context Promotion to build, review, and confirm the migration proposal |
+| Exact legacy terminal with an open Issue, no schema-v2 `legacy-reconciliation` confirmation, and no schema-v2 `awaiting-confirmation` tip | Dispatch Context Promotion to build and review the migration proposal, persist it, summarize it, and end the proposal turn; handle confirmation only in a later bound decision turn |
 | Schema-v2 terminal, or exact legacy terminal plus its schema-v2 migration confirmation, with the Issue still open | Enter the Issue closure gate |
 | Current-format terminal and independently verified closed Issue with completion-level schema-v1 Delivery observation coverage | Return completed as a verified no-op |
 | Current-format terminal and independently verified closed Issue with a trusted schema-v1 `finalization-ready` but incomplete Delivery observation coverage | Keep the Issue closed; reconstruct any missing required boundary from original evidence, rebuild the stage manifest/finalization chain as needed, and append only the missing `issue-closed`; return blocked with `closed-but-log-pending` if comments are locked or forbidden |
 | Exact terminal workflow and Issue already closed in the first immutable read, with no trusted `finalization-ready` | Return completed as a verified compatibility no-op without log backfill; require the full standalone/legacy workflow evidence, because absent logs alone never prove this exception |
 
-When a Draft product PR has both incomplete implementation evidence and a stale Closeout FAIL, prefer Implementation. When a current PASS tuple differs from the current Issue Body, PR Body, head, base, or checks, invalidate it and dispatch the phase required by the changed field. A same-head reacceptance must append a schema-v2 eligibility successor bound to the former active registration URL/digest; consumers use only the sole non-superseded tip. Never select a state by comment recency alone; require its predecessor and tuple bindings.
+When any valid schema-v2 `awaiting-confirmation` tip exists, only the two `awaiting-confirmation` rows apply; legacy reconstruction rows cannot also match. When a Draft product PR has both incomplete implementation evidence and a stale Closeout FAIL, prefer Implementation. When a current PASS tuple differs from the current Issue Body, PR Body, head, base, or checks, invalidate it and dispatch the phase required by the changed field. A same-head reacceptance must append a schema-v2 eligibility successor bound to the former active registration URL/digest; consumers use only the sole non-superseded tip. Never select a state by comment recency alone; require its predecessor and tuple bindings.
 
 The coordinator never decides whether a Draft PR satisfies the Product PR contract. After a clean coordinator re-entry, route an unaccepted Draft through Implementation even when it looks complete; the phase Agent may return an exact no-op verification. Only a verified phase hand-off accepted in the current coordinator run permits direct Closeout dispatch.
 
@@ -142,7 +144,7 @@ If an authoritative success boundary is complete but its observation is absent, 
 Before every dispatch:
 
 1. Re-read the current sources.
-2. Capture the attempt's UTC display start and same-process monotonic start for later observation; do not persist a start checkpoint.
+2. Capture the attempt's UTC display start and same-process monotonic start for later observation; do not persist a start checkpoint. For a confirmation re-entry, follow **Relay the Context Promotion confirmation** instead: do not start an overlapping phase-dispatch timer while its confirmation span is open.
 3. Build the root Skill's delegation envelope.
 4. Bind the Issue, product PR, project-memory PR, and evidence-comment sub-snapshots that apply; leave unrelated sub-snapshots null.
 5. Include only exact persistent evidence URLs needed by the phase.
@@ -181,7 +183,7 @@ For Closeout:
 
 Do not impose an arbitrary retry count. A repaired head always receives a fresh Closeout Agent. Stop only for a genuine external, permission, environment, contract, target-ambiguity, or unrecoverable-state condition.
 
-Closeout must not call `request_user_input`. When the Issue includes a genuinely human-only acceptance item, require already persisted confirmation bound to the exact snapshot. If it is absent, return blocked; do not reinterpret the `delivery` invocation as blanket acceptance.
+Closeout must not open the user decision gate. When the Issue includes a genuinely human-only acceptance item, require already persisted confirmation bound to the exact snapshot. If it is absent, return blocked; do not reinterpret the `delivery` invocation as blanket acceptance.
 
 ## Merge the accepted product PR
 
@@ -203,7 +205,7 @@ The historical legacy integration row is a read-only compatibility exception bec
 
 ## Relay the Context Promotion confirmation
 
-Require Context Promotion to finish source verification, persist an exact proposal artifact, build any exact Draft project-memory PR, run validation, persist a fresh read-only Reviewer PASS for either a write or no-write proposal, and persist one read-back-verified schema-v2 `outcome: awaiting-confirmation` callback before asking the user.
+Require Context Promotion to finish source verification, persist an exact proposal artifact, build any exact Draft project-memory PR, run validation, persist a fresh read-only Reviewer PASS for either a write or no-write proposal, and persist one read-back-verified schema-v2 `outcome: awaiting-confirmation` callback before presenting the decision summary.
 
 After re-reading that result, append and verify one `context-proposal-reviewed` boundary observation for the exact active revision. Record only proposal item identities/classifications/destinations and artifact URL/digest; never copy proposed prose.
 
@@ -218,26 +220,28 @@ Independently re-read the state callback, exact proposal artifact, Reviewer evid
 - any exact memory PR superseded by this revision, its Draft/non-active state, tuple, and reason;
 - Reviewer PASS URL/digest for every proposal and, for a write, project-memory PR URL, changed paths, diff summary, Body/head/base tuple, and validation.
 
-Immediately before displaying those details, capture a Context confirmation timing start. Then use `request_user_input` on Codex or the host's equivalent structured input tool. Ask one source-digest-bound question with:
+In the final response, provide a self-contained summary of those details plus the exact active proposal callback URL/whole-comment SHA-256 and a ready-to-send explicit `role: delivery` re-entry packet, prefixed with `$project-harness` for Codex or `/project-harness` for Claude Code and using the root Skill's `user_decision` fields. Offer exactly:
 
 - **Approve exact proposal (Recommended)** — approve only the displayed callback URL and digest;
 - **Pause without integration** — preserve the Draft/proposal and leave the Issue open;
-- the tool's free-text alternative for exact modification items.
+- **Revise exact proposal** — supply one or more exact modification items for a new proposal.
 
-Do not set an automatic resolution or default. Do not use an ordinary chat question as a fallback.
+Then end the current turn immediately with `outcome: blocked`, `recovery_condition: awaiting-context-promotion-decision`, the Issue open, and `handoff.role: delivery`. Do not call a same-turn input tool, write a `confirmed` callback, mark a memory PR Ready, merge, or close the Issue in this proposal-producing turn. Do not set an automatic resolution or default. Silence and timeout leave the persisted `awaiting-confirmation` tip unchanged and create no user-response observation.
 
-Handle the response:
+On a later current explicit `role: delivery` confirmation re-entry:
 
-- On exact approval, re-read the source, eligibility registration, authority base, every artifact evidence/current-authority source, artifact, Reviewer PASS, state callback, and any memory PR tuple. Populate the delegation envelope's host-provenance-bound `user_decision` with `decision: approved` only if every URL/digest still matches, then dispatch a fresh Context Promotion Agent to persist a `confirmed` callback and continue in that same phase invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result. `confirmed` alone is a recoverable interrupted state, not a successful phase result.
-- On modification items, populate `user_decision` with `decision: revise`, the exact proposal URL/digest, and the structured response's `modification_items`, then dispatch a fresh Context Promotion Agent to validate them against the Issue, merged evidence, classification rules, and authority boundaries. Require a new Draft tuple or no-write assessment, fresh validation, a fresh Reviewer, and a new `awaiting-confirmation` callback. Present the new revision and ask again.
-- On pause, unavailable structured-input capability, ambiguous response, or source drift, return blocked with the exact persisted proposal and recovery condition.
-- On a requested change that alters the product contract or exceeds Context Promotion authority, return return-to-definition or blocked as the phase specifies. Do not treat free text as a hidden code or policy patch.
+1. Immediately after syntactically recognizing the current exact role and `user_decision` packet, capture the Context confirmation UTC display start and same-process monotonic start. This timing start grants no authority. Never span a monotonic timer across turns or infer user wait from message/comment timestamps.
+2. Reconstruct the workflow from persistent evidence before treating the current `user_decision` as authority. Require its proposal URL/digest to equal the sole active `awaiting-confirmation` whole comment.
+3. Re-read the source, eligibility registration, authority base, every artifact evidence/current-authority source, artifact, Reviewer PASS, state callback, and any memory PR tuple. Any source identity, proposal content, classification, destination, changed path, PR Body/head/base tuple, validation, or Reviewer drift invalidates the response.
+4. Map a proposal-bound top-level decision to its audit representation exactly: `approved` → the `context-confirmed` boundary's `decision: approved`, `revise` → attempt `response_kind: revision-requested`, and `pause` → attempt `response_kind: paused`. After the proposal URL/digest has independently matched the sole active tip, map a malformed decision/items shape, post-binding source drift, or out-of-authority request to attempt `response_kind: blocked`. If that proposal binding cannot be established, return blocked before any mutation and write no observation.
+5. On exact approval, populate the fresh delegation envelope's host-provenance-bound `user_decision` with `decision: approved`, dispatch a fresh Context Promotion Agent without starting an overlapping dispatch timer, persist a `confirmed` callback, and continue in that same confirmation-continuation invocation to the applicable `no-promotion`, `memory-pr-ready`, `memory-pr-merged`, or verified legacy-terminal result. Close the one measured confirmation span only after the dispatched result is independently verified and attach it only to `context-confirmed`; write any additional Ready or terminal boundary from that same live action as reconstructed with null elapsed time. `confirmed` alone is a recoverable interrupted state, not a successful phase result.
+6. On exact modification items under `decision: revise`, finish verification of the response, close the measured confirmation-response span, and best-effort persist its `revision-requested` attempt observation before any revision phase dispatch. Then populate a fresh delegation envelope with those items and start the standard non-overlapping phase-dispatch timer. Require the phase to validate them against the Issue, merged evidence, classification rules, and authority boundaries, produce a new Draft tuple or no-write assessment, run fresh validation and a fresh Reviewer, and persist a new `awaiting-confirmation` callback. Record that new proposal in its own measured `context-proposal-reviewed` boundary. Summarize the new revision and end the turn again.
+7. On pause (`decision: pause`), close the measured confirmation-response span before any other dispatch, best-effort persist only the `paused` attempt observation, leave the active proposal and any Draft memory PR unchanged, and return blocked with `recovery_condition: awaiting-context-promotion-decision`. For malformed decision/items, post-binding source drift, or an out-of-authority request whose proposal identity already matched the active tip, close the span and best-effort persist only the bound `blocked` attempt observation, then return blocked without confirmation or downstream workflow mutation. If no active tip exists or the proposal URL/digest is missing, mismatched, or unreadable, return blocked without any observation or other mutation. A source drift repair that remains within Context Promotion authority begins only after the response span is closed and uses a new phase-dispatch timer plus a new artifact, review, callback, summary, and later decision.
+8. On a requested change that alters the product contract or exceeds Context Promotion authority, return return-to-definition or blocked as the phase specifies. Do not treat free text as a hidden code or policy patch.
 
-Any change to source identity, proposal content, classification, destination, changed paths, project-memory PR Body/head/base tuple, validation, or Reviewer verdict invalidates an earlier confirmation.
+Set `user_wait_ms: null` for this cross-turn flow and measure only the current re-entry's processing span; never persist raw input or its digest. If interruption loses a best-effort response attempt before logging, do not reconstruct it or block recovery on its absence.
 
-After the confirmation path produces a verified persistent result, append one Context confirmation observation. On approval, require the `context-confirmed` boundary bound to the schema-v2 confirmation callback. On revision, pause, or blocked input, best-effort write an attempt observation from the current live structured result with only the response kind and modification item count; never persist raw input or its digest. If interruption loses that result before logging, do not reconstruct it or block recovery on its absence. When revision work produces the next reviewed proposal, record that proposal in its own `context-proposal-reviewed` boundary.
-
-This is the only interactive gate in `delivery`.
+This split-turn exchange is the only interactive gate in `delivery`.
 
 ## Merge approved project memory
 
@@ -253,7 +257,7 @@ For an approved write proposal:
 1. Require the `confirmed` callback, exact proposal artifact and Reviewer PASS, valid `memory-pr-ready` callback, and Context Promotion's verified Ready project-memory PR result. Bind and re-read the eligibility registration URL/digest and every predecessor URL/digest.
 2. Re-read the source Issue/product PR, authority sources, proposal artifact/state and confirmation callbacks, memory PR title, complete changed files/diff, head ref/SHA, base ref/SHA, Body digest, checks, and Ready or merged state.
 3. Require the diff to contain only the approved authority-layer paths and exact approved conclusions, the sorted changed-file/blob identities to match artifact/Reviewer/Ready evidence, and `authority_base_sha == memory_base_sha` for the active revision.
-4. Require `required_checks_known: true` and every required check successful. For a new merge, also require affirmatively established mergeability. If a failed check proves a context-file or validation defect within Context Promotion authority, dispatch a fresh Context Promotion repair round: convert the exact Ready PR to Draft, repair it, persist a new artifact, obtain a fresh Reviewer PASS, and ask for structured confirmation again. If checks are pending/unknown or failure is external infrastructure, wait/re-read when supported or return blocked without mutating the tuple. For an already-merged recovery, require non-Draft state, verified merge provenance, actual integration into `develop`, and the actual allowed merge method; do not require post-merge mergeability.
+4. Require `required_checks_known: true` and every required check successful. For a new merge, also require affirmatively established mergeability. If a failed check proves a context-file or validation defect within Context Promotion authority, dispatch a fresh Context Promotion repair round: convert the exact Ready PR to Draft, repair it, persist a new artifact, obtain a fresh Reviewer PASS, summarize the new proposal, and finish the turn for a later explicit decision. If checks are pending/unknown or failure is external infrastructure, wait/re-read when supported or return blocked without mutating the tuple. For an already-merged recovery, require non-Draft state, verified merge provenance, actual integration into `develop`, and the actual allowed merge method; do not require post-merge mergeability.
 5. Establish the repository-authoritative merge method.
 6. Call the loaded Pull Request transport's `merge` operation with the exact confirmed/reviewed tuple, protected fields, and proposal-artifact, confirmation, Reviewer PASS, and memory-pr-ready URL/digest pairs. Use this same operation for current-format already-merged recovery and accept only its exact `no-op`.
 7. Independently verify merge into `develop`, unchanged title/head/Body/paths and guarded base lineage, and a non-null merge commit identity.
@@ -272,13 +276,13 @@ For every bounded phase Agent attempt, merge gate, confirmation round, reconcili
 
 1. Accept the underlying result only from original authoritative evidence.
 2. Build one boundary observation for a successful durable boundary or one attempt observation for another persisted outcome. Give each live execution one UUIDv4 `attempt_id`; reuse it only for exact ambiguous-write recovery. Leave it null for a reconstructed/unknown-timing boundary.
-3. Use `scripts/delivery_log.py` to validate the payload and calculate its transition key.
+3. Use `scripts/delivery_log.py` to calculate `transition_key`, then require `validate_new_observation` to return no errors before every new write. Use `validate_observation` only to dual-read existing/historical records and to evaluate coverage.
 4. Read every source Issue comment page and require `comments_complete: true`.
 5. Compare trusted exact candidates by normalized whole-comment digest and transition key.
 6. Add the observation through the Issue transport only when an exact Body is absent.
 7. Independently read the new or existing comment back and require the coordinator's verified mutation-author identity.
 
-Do not block workflow merely because duplicate observations share one transition key. Do block advancement when a required successful-boundary observation is absent or cannot be independently verified; this does not invalidate or roll back the underlying workflow state. A persistently evidenced non-success attempt should be logged, but it never satisfies coverage. The live-only revision/pause/blocked confirmation attempt is best-effort and cannot block re-entry after its tool result is gone. On re-entry, recover workflow truth first, then backfill a missing successful boundary with `timing_quality: reconstructed` or `unknown` and null elapsed time.
+Do not block workflow merely because duplicate observations share one transition key. Do block advancement when a required successful-boundary observation is absent or cannot be independently verified; this does not invalidate or roll back the underlying workflow state. A persistently evidenced non-success attempt should be logged, but it never satisfies coverage. The current-invocation revision/pause/blocked confirmation attempt is best-effort and cannot block re-entry after that response is no longer available. On re-entry, recover workflow truth first, then backfill a missing successful boundary with `timing_quality: reconstructed` or `unknown` and null elapsed time.
 
 Keep previews bounded and link full PR/artifact evidence. Never log raw user input, prompts, reasoning, chat, Reviewer prose, tool output, secrets, environment values, absolute local paths, or uncommitted content.
 
@@ -400,6 +404,8 @@ handoff:
 
 Return `completed` only with `issue_closure: closed`, `issue_state_verified: true`, and either current `coverage_level: completion` or the exact first-read-closed compatibility no-op exception with no trusted `finalization-ready`. For return-to-definition, preserve delivery artifacts and identify the exact changed or missing contract item. For blocked, set hand-off to `delivery` only when a later explicit re-entry can resume safely from the reported persistent state; `closed-but-log-pending` is such a recovery condition and never authorizes reopening.
 
+Treat `recovery_condition: awaiting-context-promotion-decision` as the normal split-turn confirmation pause, not a phase failure. Require `promotion_proposal_url` / `promotion_proposal_sha256` and the complete final summary/re-entry packet before returning it. A later invocation must still satisfy the normal blocked-result re-entry rules and independently re-read the active proposal.
+
 Map phase fields without renaming their evidence: Context Promotion `proposal_artifact_*` becomes delivery `promotion_artifact_*`; `proposal_comment_*` becomes `promotion_proposal_*`; `confirmation_comment_*` becomes `promotion_confirmation_*`; and terminal `source_callback_*` becomes `promotion_terminal_*`. Copy both URL and digest and re-read the source before returning them.
 
 Populate `stage_logs` only from complete paginated reads and exact observation bindings whose comment URL, normalized whole-comment digest, schema-valid record, and author are independently verified. Count attempts and measured spans by unique non-null `attempt_id`; do not count duplicate comments twice. Sum measured coordinator spans only, report reconstructed/unknown timing and change domains separately, and calculate final net file totals from the final product/memory PR diffs rather than retry previews.
@@ -411,5 +417,6 @@ Populate `stage_logs` only from complete paginated reads and exact observation b
 - Keep the three existing marker names unchanged.
 - Keep Delivery observations unmarked, audit-only, and additive. An exact standalone or legacy lineage already closed in the first immutable read with no trusted `finalization-ready` remains a completed compatibility no-op without backfill. Open lineages backfill required successful boundaries with unknown timing before finalization. A current Delivery-log schema-v1 lineage whose Issue closed after a trusted finalization but before `issue-closed` remains closed and reconstructs the missing observation chain only.
 - Treat `delivery` and schema-v2 promotion callbacks as an additive protocol migration: existing exact phase invocations keep their old stopping boundaries, while callers opt into automatic orchestration only by explicitly selecting `role: delivery`.
+- Treat the split-turn `user_decision` block as an additive invocation migration. An existing valid `awaiting-confirmation` callback from the same-turn protocol resumes through the new explicit re-entry without rewriting its artifact, review, or callback; an existing valid `confirmed`, Ready, or terminal chain remains valid. Do not change marker names, callback schemas, digest rules, or active-tip semantics for this interaction migration.
 - Dual-read existing Context Promotion callbacks under the strict legacy rules. Treat an exact standalone or legacy terminal workflow plus an Issue already closed in the first immutable read, with no trusted `finalization-ready`, as completed compatibility no-op evidence; missing logs alone never suffice without the complete workflow proof.
-- When a legacy callback leaves the Issue open, reconstruct an exact schema-v2 proposal artifact, persist a fresh Reviewer PASS, and obtain structured confirmation before any new merge or close. For a legacy project-memory PR already merged before this protocol, confirm a `legacy-reconciliation` proposal and then persist the schema-v2 terminal without pretending the confirmation happened before that historical merge.
+- When a legacy callback leaves the Issue open, reconstruct an exact schema-v2 proposal artifact, persist a fresh Reviewer PASS, summarize it, and obtain a later explicit source-bound confirmation before any new merge or close. For a legacy project-memory PR already merged before this protocol, confirm a `legacy-reconciliation` proposal and then persist the schema-v2 terminal without pretending the confirmation happened before that historical merge.

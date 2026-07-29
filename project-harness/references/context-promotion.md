@@ -2,7 +2,7 @@
 
 Execute this phase only after `project-harness` dispatches a standalone `role: context-promotion` or the current `delivery` coordinator delegates the Context Promotion phase under the root Skill's scoped envelope.
 
-Assess durable context after an eligible product Pull Request merges, produce an exact independently reviewed update or no-write proposal, obtain structured user confirmation, and reconcile only the confirmed result. Promote cross-task knowledge only when forgetting it would cause repeated decisions, an incorrect capability judgment, or concrete correctness, safety, compatibility, or delivery risk.
+Assess durable context after an eligible product Pull Request merges, produce an exact independently reviewed update or no-write proposal, summarize it at a turn boundary, obtain a later explicit source-bound user confirmation, and reconcile only the confirmed result. Promote cross-task knowledge only when forgetting it would cause repeated decisions, an incorrect capability judgment, or concrete correctness, safety, compatibility, or delivery risk.
 
 ## Contents
 
@@ -48,9 +48,9 @@ authoritative_sources:
 next_action: Propose, confirm, and reconcile validated reusable knowledge.
 ~~~
 
-When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: context-promotion`. Depending on the current state, require separate bound product-PR and memory-PR snapshots plus exact acceptance, eligibility, proposal, confirmation, Reviewer PASS, or merge evidence comments. For an approval or revision round, require the host-provenance-bound `user_decision` fields and verify their proposal URL/digest against the current source before use. Re-read every source completely.
+When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: context-promotion`. Depending on the current state, require separate bound product-PR and memory-PR snapshots plus exact acceptance, eligibility, proposal, confirmation, Reviewer PASS, or merge evidence comments. For any approval, revision, or pause confirmation round, require the host-provenance-bound `user_decision` fields derived from the current explicit `role: delivery` confirmation re-entry. For standalone, require those fields directly in the current explicit `role: context-promotion` re-entry. Verify their proposal URL/digest against the sole active state before use and re-read every source completely.
 
-Do not accept chat summaries or Delivery stage observations as promotion evidence. Treat modification text relayed from a current structured confirmation response only as a request to build a new source-bound proposal, never as authority to patch files directly.
+Do not accept chat summaries or Delivery stage observations as promotion evidence. Treat modification text relayed from the current explicit source-bound confirmation response only as a request to build a new proposal, never as authority to patch files directly.
 
 ## Verify the source and promotion state chain
 
@@ -68,7 +68,7 @@ Apply only the normal, repair, and legacy migration chains defined by the shared
 
 An unmerged product PR with only a valid legacy eligibility lineage cannot enter the automatic product merge gate. Route it to a fresh Closeout round, which creates the one permitted schema-v2 successor after current acceptance. A product PR already merged under the historical protocol may use the independently verified legacy lineage only as evidence for the confirmation migrations defined below.
 
-An exact legacy terminal with an already closed Issue is a completed no-op after every shared-contract check. When the Issue is open, reconstruct a complete schema-v2 proposal, persist a fresh Reviewer PASS, and obtain structured confirmation before any new merge or close. Apply the same rule to unmerged or already merged legacy `memory-pr-ready`. A malformed schema-v2 callback is never legacy.
+An exact legacy terminal with an already closed Issue is a completed no-op after every shared-contract check. When the Issue is open, reconstruct a complete schema-v2 proposal, persist a fresh Reviewer PASS, summarize it, and obtain a later explicit source-bound confirmation before any new merge or close. Apply the same rule to unmerged or already merged legacy `memory-pr-ready`. A malformed schema-v2 callback is never legacy.
 
 ## Classify promotable knowledge
 
@@ -91,7 +91,7 @@ Apply the repository classifications exactly:
 
 | Classification | Promote only | Authoritative destination |
 | --- | --- | --- |
-| `decision` | Long-term architecture/product decision confirmed by the source contract, evidence, or the exact structured confirmation | `docs/decisions/ADR-*.md` |
+| `decision` | Long-term architecture/product decision confirmed by the source contract, evidence, or the exact source-bound user confirmation | `docs/decisions/ADR-*.md` |
 | `stable_rule` | Durable project/module guardrail whose omission creates recurring risk | `docs/rules/active/*.rules.md` |
 | `wiki_knowledge` | Explanatory onboarding or module knowledge with links to authority | `docs/wiki/*.md` |
 | `stable_context` | Long-lived project identity/background, not technical truth or current work | `.project-memory/context_brief.md` |
@@ -106,7 +106,7 @@ Use the source PR's `持久项目记忆实际影响` table as a candidate index,
 
 ## Build the exact proposal
 
-Build the proposal before requesting user input.
+Build the proposal before presenting the turn-ending confirmation summary.
 
 For every category, record:
 
@@ -192,17 +192,19 @@ Normalize, digest, add, and independently read the exact comment back through th
 
 Require `eligibility_registration_url` / `eligibility_registration_sha256`, `proposal_artifact_url` / `proposal_artifact_sha256`, and `reviewer_pass_url` / `reviewer_pass_sha256` for every path. Bind the no-write evidence comment for an all-`no_write` proposal, or the project-memory PR PASS comment for a write proposal. For a write, require the state callback's `authority_base_sha` and `memory_base_sha` to be equal. Immediately before relay, re-read the complete artifact, eligibility registration, authority base, and every evidence/current-authority source and compare their recorded digests; rebuild and re-review on any drift. Display exact details from the artifact rather than reconstructing user-visible content from the state callback.
 
-When delegated, return that exact proposal to the `delivery` coordinator for display and `request_user_input`. When standalone, present the same complete details and call `request_user_input` directly. On Codex, this requires Plan mode. On a host without that exact tool, use an equivalent structured choice-and-free-text input. If no structured input capability is callable, return blocked with the proposal persisted; never downgrade to an ordinary chat question or infer approval.
+When delegated, return that exact proposal to the `delivery` coordinator for a final, self-contained summary. When standalone, present the same complete details in the final response, including the proposal callback URL/whole-comment SHA-256, Reviewer PASS identity, any complete memory-PR tuple, and a ready-to-send explicit `role: context-promotion` re-entry packet, prefixed with `$project-harness` for Codex or `/project-harness` for Claude Code and using the root Skill's `user_decision` fields. In either case, end the proposal-producing turn with `awaiting-confirmation`. Do not call a same-turn input tool, write `confirmed`, mark a memory PR Ready, merge, close the Issue, or infer approval in that turn.
 
-Offer exact approval, pause, and a free-text modification path. Bind approval only to the displayed proposal comment URL/digest and, for a write, the exact Draft PR tuple.
+Offer exact approval, pause, and an exact modification-items path. Bind approval only to the displayed proposal comment URL/digest and, for a write, the exact Draft PR tuple. Silence or timeout leaves the active proposal unchanged and is not a response.
 
-Never write raw structured-input text, its digest, chat, or prompt content into a Delivery observation. Under `delivery`, the coordinator may later record only the response kind, modification item count, and resultant reviewed proposal identity under the separate log contract.
+Never write raw confirmation-response text, its digest, chat, or prompt content into a Delivery observation. Under `delivery`, the coordinator may later record only the response kind, modification item count, and resultant reviewed proposal identity under the separate log contract.
 
-After exact approval, re-read the Issue/product PR tuple, eligibility registration, authority base, every evidence/current-authority source, proposal artifact/state, Reviewer PASS, and any memory PR tuple. Compose the exact **Confirmed callback** from the shared evidence contract and add it as another source PR comment with the unchanged marker only when every URL, digest, ref, changed path, and validation result remains exact.
+On a later exact confirmation re-entry, first require the current `user_decision` proposal URL/digest to equal the sole active `awaiting-confirmation` whole comment. Re-read the Issue/product PR tuple, eligibility registration, authority base, every evidence/current-authority source, proposal artifact/state, Reviewer PASS, and any memory PR tuple. Compose the exact **Confirmed callback** from the shared evidence contract and add it as another source PR comment with the unchanged marker only for `decision: approved` and only when every URL, digest, ref, changed path, and validation result remains exact.
+
+For `decision: revise`, do not write `confirmed`; continue through **Apply modification requests and promotion-scope repairs** and produce a new reviewed `awaiting-confirmation` revision. For `decision: pause`, make no phase mutation and return the existing `awaiting-confirmation` identities. Return blocked without a confirmation mutation for a malformed decision, stale proposal identity, or source drift that cannot safely produce a reviewed revision.
 
 Require `proposal_kind` to equal the predecessor `awaiting-confirmation` callback. Whenever that proposal artifact includes a project-memory PR—normal write, unmerged legacy Ready, or historical merged-memory reconciliation—memory PR URL, title, Body digest, head ref/SHA, base ref/SHA, and changed files are all required and must equal the exact displayed/reviewed tuple. They are null only when the exact artifact contains no memory PR. Independently read the confirmation back and bind its URL/digest. Any eligibility registration, authority base/source, proposal, PR tuple, changed-file identity, validation, or Reviewer change invalidates it.
 
-Do not return `confirmed` as a successful phase result. In the same phase invocation:
+Do not return `confirmed` as a successful phase result. In the same confirmation-continuation phase invocation:
 
 - continue an unchanged normal all-`no_write` proposal to schema-v2 `no-promotion`;
 - continue an unchanged normal write proposal, including a write that supersedes legacy `no-promotion`, to schema-v2 `memory-pr-ready` and `verified-memory-pr`;
@@ -222,7 +224,7 @@ Treat modification items, repairable authority/current-source drift, or a repair
 5. Persist a new complete proposal artifact bound to the preceding artifact URL/digest.
 6. Use a fresh independent Reviewer against the new artifact and, for a write, the new exact PR tuple/diff.
 7. Persist a new `outcome: awaiting-confirmation` callback with an incremented revision and the superseded state callback as `previous_comment_url` / `previous_comment_sha256`. For a repair from a confirmed-only tip, populate `invalidates_confirmation_*` and leave `invalidates_ready_*` null. For a repair after Ready, populate both pairs. For an unconfirmed user revision all four invalidation fields remain null.
-8. When delegated, return `awaiting-confirmation` so the coordinator displays the new artifact and invokes structured input; when standalone, display it and request structured confirmation directly.
+8. Return `awaiting-confirmation`; when delegated, let the coordinator summarize the new artifact and finish the turn, and when standalone, provide the same final summary and explicit re-entry packet directly before finishing the turn.
 
 If the existing project-memory PR is Ready, use the delegated conditional `convert-to-draft` mutation and verify Draft state before changing content or head. A confirmed no-write authority/source repair has no PR to convert and proceeds directly to a new artifact and review. Do not edit or replace prior proposal, review, or confirmation comments. A modified or repaired proposal requires a new artifact, review, state digest, and approval. Never loop a check failure by repeatedly changing content under an old confirmation.
 
@@ -266,7 +268,7 @@ Populate `changed_files` with the exact sorted artifact/Reviewer identities for 
 
 When delegated, return the verified Ready tuple to the `delivery` coordinator's project-memory merge gate. A standalone role hands it to external review or a later `delivery` entry.
 
-For an exact unmerged legacy `memory-pr-ready` whose project-memory PR remains Ready and whose Issue remains open, do not mark it Ready again. After every strict legacy check, build a `legacy-reconciliation` proposal artifact for the exact existing diff, persist a fresh Reviewer PASS, obtain structured confirmation, and re-read the unchanged eligibility, authority, source, artifact, review, confirmation, and memory-PR tuple. Then compose, append, and verify the shared evidence contract's `migration: confirmed-legacy-ready` variant of the **Memory-PR-ready callback**.
+For an exact unmerged legacy `memory-pr-ready` whose project-memory PR remains Ready and whose Issue remains open, do not mark it Ready again. After every strict legacy check, build a `legacy-reconciliation` proposal artifact for the exact existing diff, persist a fresh Reviewer PASS, summarize and stop, obtain a later explicit source-bound confirmation, and re-read the unchanged eligibility, authority, source, artifact, review, confirmation, and memory-PR tuple. Then compose, append, and verify the shared evidence contract's `migration: confirmed-legacy-ready` variant of the **Memory-PR-ready callback**.
 
 Populate `changed_files` with the exact sorted fresh-review identities. This migrated nonterminal may enter the coordinator's merge gate only for the unchanged Ready tuple. If the user requests a modification, or the tuple/base/check repair changes content, convert it to Draft first and follow the normal new-artifact, fresh-review, new-confirmation path instead.
 
@@ -284,7 +286,7 @@ Return terminal only for `verified` or `no-op`.
 
 For an exact legacy `memory-pr-merged` with an open Issue, do not append another terminal. After the `legacy-reconciliation` proposal and confirmation are verified against the already merged diff, return the existing legacy terminal plus the new confirmation as closure evidence.
 
-For an exact legacy `memory-pr-ready` whose project-memory PR is already merged and whose Issue remains open, first satisfy every strict legacy check, independently verify the integrated diff, transport-verified merge provenance, allowed actual merge method, current merge identity, and currently known successful required checks for the exact head, then build a schema-v2 `legacy-reconciliation` proposal artifact, persist a fresh Reviewer PASS, and obtain structured confirmation. This is a read-only historical-integration exception, not a current-format merge `no-op`. After confirmation, compose and append the shared evidence contract's `migration: confirmed-legacy-already-merged` variant of the **Memory-PR-merged terminal**.
+For an exact legacy `memory-pr-ready` whose project-memory PR is already merged and whose Issue remains open, first satisfy every strict legacy check, independently verify the integrated diff, transport-verified merge provenance, allowed actual merge method, current merge identity, and currently known successful required checks for the exact head, then build a schema-v2 `legacy-reconciliation` proposal artifact, persist a fresh Reviewer PASS, summarize and stop, and obtain a later explicit source-bound confirmation. This is a read-only historical-integration exception, not a current-format merge `no-op`. After confirmation, compose and append the shared evidence contract's `migration: confirmed-legacy-already-merged` variant of the **Memory-PR-merged terminal**.
 
 Independently read back this callback. This path recognizes an integration that already happened; it does not fabricate historical confirmation and it cannot authorize any new merge.
 
@@ -356,7 +358,7 @@ handoff:
   next_action: null
 ~~~
 
-For delegated `awaiting-confirmation`, return the exact proposal artifact/state/review identities with `coordinator_action: request-confirmation`. For delegated `verified-memory-pr`, use `issue_closure: pending-memory-pr-merge` and `coordinator_action: merge-memory-pr`. For delegated no-promotion or memory-pr-merged, leave `issue_closure: null`, set `coordinator_action: close-issue`, and return the terminal evidence; only the coordinator may close.
+For delegated `awaiting-confirmation`, return the exact proposal artifact/state/review identities with `coordinator_action: request-confirmation`; the coordinator summarizes them and ends its current turn. For standalone `awaiting-confirmation`, return the same identities with `coordinator_action: null`, leave `issue_closure: null`, and hand off to the user with the explicit `role: context-promotion` re-entry packet plus the current host trigger. For delegated `verified-memory-pr`, use `issue_closure: pending-memory-pr-merge` and `coordinator_action: merge-memory-pr`. For delegated no-promotion or memory-pr-merged, leave `issue_closure: null`, set `coordinator_action: close-issue`, and return the terminal evidence; only the coordinator may close.
 
 For a standalone no-promotion or reconciled memory-pr-merged result, close the Issue in the same invocation and require `issue_closure: closed` with `issue_state_verified: true`.
 

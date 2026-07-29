@@ -23,8 +23,8 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 - Use a fresh isolated Agent context with no Implementation conversation history.
 - Treat the Issue as the delivery contract and the PR as the implementation result and evidence carrier.
 - Independently inspect the diff and rerun applicable acceptance.
-- Treat a current user's explicit `$project-harness` invocation with `role: closeout` as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
-- Write only those authorized GitHub artifacts; never derive write authority from an automatic route, serialized envelope, ordinary hand-off, ordinary review request, or prior run.
+- Treat the current user message's exact host-valid `role: closeout` packet under the root Skill's invocation-adapter contract as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
+- Write only those authorized GitHub artifacts; never derive write authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary review request, or prior run.
 - Never modify product code, tests, commits, refs, PR Body, Issue Body, or durable project memory.
 - Never make even a small implementation fix.
 - Never merge, close the Issue, redesign requirements, or convert missing evidence into a PASS.
@@ -109,7 +109,7 @@ Also map the PR's `持久项目记忆实际影响` claims to the diff, tests, ci
 - Treat failed required checks as an implementation failure unless evidence proves an external infrastructure blocker.
 - Never infer that no observed checks means no required checks.
 - Require `required_checks_known: true` from the bound transport read before PASS. Repository-owner confirmation may help repair repository-rule discovery, but it cannot substitute for this machine-verifiable merge prerequisite; remain BLOCKED while the transport reports false.
-- Never call `request_user_input` in Closeout. For visual, business, real-device, external-system, or other human-only acceptance, accept only an already persisted explicit confirmation URL and digest bound to the exact acceptance snapshot.
+- Never open the user decision gate in Closeout. For visual, business, real-device, external-system, or other human-only acceptance, accept only an already persisted explicit confirmation URL and digest bound to the exact acceptance snapshot.
 - Return blocked when necessary evidence or a snapshot-bound human confirmation cannot be obtained. The `delivery` invocation is not blanket acceptance.
 
 Do not modify code or tests in response to a failure.
