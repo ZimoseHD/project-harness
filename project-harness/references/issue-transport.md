@@ -35,7 +35,7 @@ Allow final source Issue closure only to either the current `delivery` coordinat
 | Operation | Required behavior |
 | --- | --- |
 | Search | Search the exact repository and requested open/closed scope. Return raw normalized Issue candidates without semantic classification. Mark and exclude Pull Requests. |
-| Read | Fetch the exact Issue and requested comments. Return identity, state, metadata, title, Body digest, and for every requested comment its ID, URL, author login, creation time, normalized Body digest, and Body when requested, without changing GitHub. When the caller requests Delivery observations or coverage, enumerate every comment page and report completeness explicitly; never treat a truncated page as the full candidate set. |
+| Read | Fetch the exact Issue and requested comments. Return identity, state, metadata, title, Body digest, and for every requested comment its ID, URL, author login, creation time, normalized Body digest, and Body when requested, without changing GitHub. When the caller requests a complete Delivery observation inventory, ambiguous-comment recovery, or coverage, enumerate every comment page and report completeness explicitly; never treat a truncated page as the full candidate set. An ordinary live observation add/read-back may use the caller's already proven complete operation-local inventory and fetch only the Issue baseline plus the exact returned comment. |
 | Create | Require an exact title and the caller's complete Body, if any. Apply only explicitly supplied labels, assignees, or milestone. Never infer metadata or semantic uniqueness. |
 | Replace Issue content | Require the exact Issue identity and complete replacement title or Body. Do not perform fuzzy, section-based, or conversational edits. |
 | Change metadata | Support explicit state/state reason, labels, assignees, and milestone mutations. Require an explicit mode for collection fields such as replace, add, or remove. Preserve omitted fields. |
@@ -46,6 +46,8 @@ Do not support Projects, Issue types, dependencies, or Pull Request mutations un
 
 ## Protect every mutation
 
+Treat this section as the root Skill's `L2 atomic-mutation-guard`. An operation-local Evidence Bundle cannot replace the target baseline, immediate pre-write comparison, ambiguous-response recovery, or independent read-back.
+
 1. Fetch the current Issue and the minimum fields needed to prove identity, establish the baseline, and verify preservation. For a comment update, fetch the exact comment as part of the baseline.
 2. Normalize Markdown line endings to LF with exactly one trailing newline. Use `scripts/markdown_digest.py` to calculate the SHA-256 digest for an Issue Body or comment text.
 3. Compare the desired state with the baseline. If all requested fields already match, skip the mutation and return `no-op` with the verified identity and digest.
@@ -54,6 +56,12 @@ Do not support Projects, Issue types, dependencies, or Pull Request mutations un
 6. If the mutation response is missing, times out, or is otherwise ambiguous, do not retry. Recover through search or fetch only when Issue identity, title, expected digest, and operation evidence prove that the original mutation succeeded. For an observation comment, enumerate all comment pages and match the exact normalized whole Body/digest. Otherwise return `indeterminate`.
 7. After a mutation response, perform a separate fetch through the same transport. Never reuse the mutation response as read-back evidence.
 8. Verify the Issue or comment identity, every requested field, every protected baseline field, and applicable Markdown digests. Return `indeterminate` for unexpected side effects or a mismatch, even when GitHub accepted the mutation.
+
+For a new live Delivery observation, do not require the transport to enumerate unrelated comments when the current coordinator supplies a proven complete operation-local inventory and the desired Body is absent from it. Protect the Issue identity/title/Body/state baseline, add once, and read the exact returned comment by ID. This optimization grants no trust to the caller's inventory: ambiguous response recovery, recovery without that complete inventory, and every manifest/closure/completion coverage read still require complete pagination and transport-verified authorship.
+
+A normal observation write therefore uses targeted Issue baseline protection plus exact comment ID read-back without complete pagination. Ambiguous response recovery, clean recovery without a complete current inventory, and final coverage each require complete pagination across all comment pages.
+
+Treat final Issue closure and the post-close state verification as the root Skill's `L3 irreversible-gate`. A Bundle never authorizes closure or substitutes for the complete workflow and coverage evidence required by the selected Harness operation.
 
 ## Return the shared result envelope
 

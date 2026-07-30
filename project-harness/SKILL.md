@@ -105,11 +105,11 @@ For `delivery`, the coordinator loads `references/delivery.md`, the two transpor
 
 ## Delegate without expanding authority
 
-A current explicit `role: delivery` invocation authorizes only the exact delivery tail for the supplied Issue. Before starting a Phase Owner, create this ephemeral delegation envelope:
+A current explicit `role: delivery` invocation authorizes only the exact delivery tail for the supplied Issue. Before starting a Phase Owner, emit `delegation.schema_version: 2` in this ephemeral delegation envelope:
 
 ~~~yaml
 delegation:
-  schema_version: 1
+  schema_version: 2
   parent_role: delivery
   delegated_role: implementation | closeout | context-promotion
   authoritative_sources: []
@@ -136,6 +136,60 @@ delegation:
     evidence_comments:
       - url: null
         body_sha256: null
+  evidence_bundle:
+    bundle_schema_version: 1
+    scope: implementation | closeout | context-promotion
+    semantic_round_key: null
+    bundle_sha256: null
+    provenance:
+      authenticated_actor_login: null
+      authenticated_actor_id: null
+      mutation_author_login: null
+      transport_family: null
+    completeness:
+      issue_body: false
+      workflow_comments: false
+      related_pr_search: false
+      product_pr: false
+      authority_sources: false
+      memory_pr: false
+      diff: false
+      checks: false
+    completeness_bindings:
+      issue_body: []
+      workflow_comments: []
+      related_pr_search: []
+      product_pr: []
+      authority_sources: []
+      memory_pr: []
+      diff: []
+      checks: []
+    semantic_snapshot:
+      round_binding:
+        delegated_role: implementation | closeout | context-promotion
+        bound_snapshot: {}
+        persistent_evidence: []
+        user_decision: {}
+        allowed_mutations: {}
+        next_action: null
+      payload_identities: {}
+    liveness_snapshot:
+      payload_identities: {}
+    payloads: []
+  evidence_component_identities:
+    issue_body:
+      PAYLOAD-ID:
+        locator: LOCATOR
+        snapshot_class: semantic
+        source_identity: content-sha256:SHA256
+        content_sha256: SHA256
+    workflow_comments: {}
+    related_pr_search: {}
+    product_pr: {}
+    authority_sources: {}
+    memory_pr: {}
+    diff: {}
+    checks: {}
   persistent_evidence_urls: []
   user_decision:
     proposal_url: null
@@ -148,6 +202,22 @@ delegation:
     pull_request_transport: []
   next_action: null
 ~~~
+
+- Treat the Evidence Bundle as an operation-local, transport-derived, digest-bound read cache, never as persistent evidence, workflow state, mutation authority, a Delivery observation, or project memory. Populate every payload with one stable ID, kind, locator, `snapshot_class: semantic | liveness`, normalized content, and its SHA-256 digest. Define `source_identity` exactly as `content-sha256:<content_sha256>`; do not accept an opaque caller-selected identity. Put the exact outer delegated role, bound semantic tuple/evidence identities, user-decision binding, allowed mutations, and `next_action` in `semantic_snapshot.round_binding`; derive `semantic_round_key` only from that stable binding's UTF-8 canonical JSON. Keep the extensible `semantic_snapshot.payload_identities` outside `round_binding`. Have `scripts/evidence_bundle.py` sort payloads and each completeness binding by payload ID, derive both snapshot classes' `payload_identities` maps from each payload's exact locator/snapshot-class/source-identity/content-digest tuple, then calculate `semantic_round_key` and `bundle_sha256`.
+- Have the coordinator construct the initial Bundle from its immutable workflow reconstruction and include the complete normalized Issue/PR Bodies, requested comments, diff, check snapshot, and other payloads already read for the delegated scope. Let the Phase Owner add only phase-owned authority sources or newly produced PR evidence and derive a successor Bundle. Do not make the Owner download a complete payload again merely to establish independence.
+- Require every Bundle to bind the verified authenticated actor, mutation author, selected transport family, semantic snapshot, liveness snapshot, and explicit completeness map. A true completeness field must have a non-empty `completeness_bindings` list whose payload IDs exist and whose normalized transport result proves the requested scope was completely represented, including a verified absence; a false field must bind no payload and is a structural cache miss. Before building the Bundle, have the producer run `derive_component_identities` over the original normalized transport-result manifest and place the result in the outer `evidence_component_identities`; do not derive the expected map from the Bundle being validated. Require each bound payload's locator/snapshot-class/source-identity/content-digest tuple to equal both its derived snapshot `payload_identities` entry and that outer map. Call `validate_bundle` with the exact `expected_scope`, outer-derived `expected_round_binding`, the component names required by the current consumer, and the outer map as `expected_component_identities`. A false, missing, unverifiable, unbound, wrong-scope, stale-round, class/identity-mismatched, or digest-mismatched required component requires a targeted fresh read or a blocked result, never permission to continue.
+- When the Phase Owner adds authority, current-authority search, memory-PR, diff, check, or newly produced evidence payloads, derive the corresponding identities from those exact transport results and extend the outer map and successor Bundle together. Pass the complete successor map beside the Bundle to a Reviewer. This map is operation-local and excluded from `semantic_round_key`; a same-target extension does not create a new Owner. Never persist the map, Bundle, or raw payloads.
+- Pass the same normalized Bundle payloads to a fresh Reviewer. Define review independence as an isolated, mutation-free judgment over exact raw evidence, not as a requirement to repeat evidence acquisition. Require the Reviewer to verify Bundle integrity locally and return `FAIL: incomplete-evidence-bundle` for a missing input; permit a targeted challenge read only when an exact source is incomplete, inconsistent, or requires a live gate.
+- Use no time-to-live. Keep reusable semantic content valid only while its exact digest, immutable commit/blob binding, and semantic-round key remain unchanged. Put checks, mergeability, permissions, Issue/PR state, and repository merge-method capability in `liveness_snapshot`; a Bundle can report but never freeze them. Bind an active lineage or branch tip in `semantic_snapshot` whenever it is part of the delegated tuple, even if its current value is also probed live.
+- Dual-read a delegated schema-v1 envelope only for compatibility. Because it has no Evidence Bundle, perform the existing complete independent reads and never infer cached content from its `bound_snapshot`. Emit only schema-v2 for a new dispatch. An unknown delegation or Bundle schema is blocked.
+- Apply these exact verification layers without duplicating them in phase references:
+
+| Layer | Purpose | Required behavior |
+| --- | --- | --- |
+| `L0 bundle-integrity` | Owner/Worker/Reviewer consumption | Validate schema, provenance, consumer-required completeness and payload bindings, normalized payload digests, `bundle_sha256`, expected scope, and the outer-delegation-derived semantic round without a GitHub re-read. |
+| `L1 semantic-freshness` | Proposal relay, confirmation re-entry, and phase hand-off | Probe only mutable semantic identities: Issue/PR Body digests, relevant comment URL/digests and active lineage, authority base/blob bindings, and any memory-PR tuple/changed-file identities. Reuse unchanged normalized payloads. |
+| `L2 atomic-mutation-guard` | Comment, content, Draft/Ready, and metadata mutations | Preserve the loaded transport's target baseline fetch, immediate pre-write comparison, one mutation, and independent target read-back. A Bundle never replaces this layer. |
+| `L3 irreversible-gate` | Product/memory merge and Issue closure | Re-read current checks, mergeability, integration policy/capability, PR/Issue state, complete gate evidence, and closure coverage required by the loaded operation. A Bundle never authorizes merge or close. |
 
 - Bind every populated field to independently read persistent evidence. Do not use a chat summary as a source.
 - Populate `user_decision` only from the current explicit proposal-bound confirmation re-entry after independently verifying its URL/digest against the sole active `awaiting-confirmation` tip. Treat `modification_items` as a request for a new proposal, not as direct patch authority.
@@ -164,7 +234,7 @@ Search, read, and `read-checks` are non-mutating capabilities and do not need mu
 - Treat the delegated Agent as the Phase Owner and sole holder of that phase's mutation set. Permit it to create only direct, narrow, read-only Workers or one fresh independent Reviewer when separate context materially improves the current semantic round.
 - Give every Worker and Reviewer an empty persistent mutation set. Forbid them from creating descendants, producing the phase hand-off, repairing their own findings, changing tracked files, or persisting a verdict, callback, branch, commit, PR, or Delivery observation. A Worker may emit ephemeral tool output only inside Owner-provided isolated scratch space; the Owner must discard it or independently integrate any result. Require the Owner to integrate and independently verify every structured result.
 - Keep independent Reviewers fresh, read-only, tuple-bound, and limited to structured `PASS` or blocking `FAIL`. Require the Owner—not the Reviewer—to compose and persist every workflow-owned review artifact after rechecking the unchanged tuple.
-- Keep one live Owner for one exact combination of `delegated_role`, bound snapshot, persistent evidence, user decision, allowed mutations, and `next_action`. A slow read, active tool call, Worker failure, or Reviewer `FAIL` does not create a new semantic round. Replace the Owner only after a changed bound input or target, its explicit terminal return, or host-confirmed unrecoverable context loss.
+- Keep one live Owner for one exact combination represented by `semantic_round_key`: delegated role, bound semantic snapshot, persistent evidence, user decision, allowed mutations, and `next_action`. A liveness-only successor Bundle changes `bundle_sha256` but not the semantic round or Owner. A slow read, active tool call, Worker failure, or Reviewer `FAIL` does not create a new semantic round. Replace the Owner only after a changed bound semantic input or target, its explicit terminal return, or host-confirmed unrecoverable context loss.
 - Forbid every descendant from merging a PR, closing the source Issue, approving a Context Promotion proposal for the user, or declaring the entire delivery complete.
 
 The coordinator may atomically merge or close only where `references/delivery.md` permits it. A normal phase hand-off does not grant those mutations.
@@ -187,6 +257,8 @@ The coordinator may atomically merge or close only where `references/delivery.md
 - Require every loaded Issue/PR transport result in one operation to report the same verified authenticated actor login/ID and mutation-author login. Stop blocked on a mismatch or unverifiable identity.
 - Accept only `verified` or `no-op` transport results; fail closed on partial, ambiguous, `blocked`, `indeterminate`, or mismatched results.
 - Bind every decision or verdict to the fields required by its phase, including Issue Body digest, PR Body digest, head SHA, base ref/SHA, and comment URL/digest when applicable. Invalidate stale review, acceptance, promotion proposal, or user confirmation when a bound field changes.
+- Let Context Promotion calculate its review tier only under that phase reference. A lower tier may narrow evidence breadth and local validation, but it never removes the fresh independent Reviewer, source-bound user confirmation, exact tuple/digest binding, required checks, merge gate, or closure gate.
+- Treat a Context Promotion validation-impact artifact as retained local-validation evidence only. Never let it preserve an old tuple, Reviewer PASS, confirmation, mergeability result, or old-head required CI/check.
 - Before completing an operation, establish every authoritative repository fact and durable source required by that operation. Stop and report missing evidence when a required fact cannot be established; never treat `proposed` material as verified behavior.
 - Use the shared Issue contract as the only Issue Body schema. Use the shared Product PR contract only for the product PR handled by Implementation, Closeout, and Context Promotion. Build proposed-decision and project-memory-only PR Bodies from the selected phase reference instead. Do not look for or maintain `.github` copies of either contract.
 

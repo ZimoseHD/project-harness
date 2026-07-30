@@ -14,6 +14,7 @@ This file is the single authority for those artifacts' marker forms, required se
 - Require the Issue and Pull Request transports to return the same verified authenticated actor record for the operation. Establish its `mutation_author_login` as the trusted workflow author; a marker or arbitrary matching comment cannot establish trust.
 - For a current-format lineage, require the Closeout PASS, Issue callback, schema-v2 eligibility registration, and every schema-v2 promotion callback's transport-returned author login to equal the trusted workflow author. Apply only the explicit legacy migration rules below when historical authorship differs.
 - A phase result or hand-off is only a search hint. A consumer must fetch and validate the original artifact under this contract before relying on it.
+- An operation-local Evidence Bundle is a non-persistent, non-authoritative optimization defined by the root Skill. It may carry exact normalized artifact content between the current coordinator, Owner, and Reviewer, but it does not authorize a transition or replace the live artifact, active-lineage, mutation, merge, or closure checks required here.
 - Treat each Context Promotion artifact named **Reviewer PASS** as persistent evidence of an independent Reviewer's returned, tuple-bound read-only verdict. The Reviewer never writes that GitHub comment: the Context Promotion Phase Owner is its producer, composes it from the returned verdict and exact independently read tuple, persists it through the loaded Pull Request transport, and verifies the read-back. This ownership clarification does not change any artifact field, author rule, digest, predecessor, or schema below.
 
 ## Persist Closeout evidence
@@ -198,13 +199,154 @@ For a write, require the complete memory-PR tuple, non-empty exact sorted `chang
 
 For no-write, require all five durable categories with explicit category-specific reasons, all memory-PR fields null, and both changed-file collections empty. A legacy migration must populate `legacy_evidence_*`; an artifact that supersedes a memory PR must populate every `supersedes_memory_*` field.
 
+### Context Promotion validation-impact artifact
+
+After an advanced-base assessment selects `reuse` or `incremental`, have the Context Promotion Phase Owner write one append-only Draft project-memory-PR comment without a workflow marker:
+
+~~~yaml
+artifact_kind: context-promotion-validation-impact
+artifact_schema_version: 1
+issue_url: URL
+source_pr_url: URL
+memory_pr_url: URL
+prior_proposal_artifact_url: URL
+prior_proposal_artifact_sha256: SHA256
+prior_reviewer_pass_url: URL
+prior_reviewer_pass_sha256: SHA256
+prior_head_sha: COMMIT
+prior_base_sha: COMMIT
+current_head_sha: COMMIT
+current_base_sha: COMMIT
+base_relation: fast-forward
+current_base_is_head_ancestor: true
+base_delta:
+  complete: true
+  truncated: false
+  files:
+    - status: added | modified | removed | renamed
+      old_path: PATH | null
+      new_path: PATH | null
+      old_blob_sha: SHA | null
+      new_blob_sha: SHA | null
+prior_promotion_patch:
+  complete: true
+  truncated: false
+  files:
+    - status: added | modified | removed | renamed
+      old_path: PATH | null
+      new_path: PATH | null
+      old_blob_sha: SHA | null
+      new_blob_sha: SHA | null
+current_promotion_patch:
+  complete: true
+  truncated: false
+  files:
+    - status: added | modified | removed | renamed
+      old_path: PATH | null
+      new_path: PATH | null
+      old_blob_sha: SHA | null
+      new_blob_sha: SHA | null
+prior_promotion_patch_sha256: SHA256
+current_promotion_patch_sha256: SHA256
+validation_inventory_complete: true
+validation_inventory:
+  - id: VALIDATION-ID
+    dependency_paths: []
+    global: false
+validation_inventory_sha256: SHA256
+global_trigger_paths_complete: true
+global_trigger_paths: []
+impact_input_sha256: SHA256
+impact_mode: reuse | incremental
+invalidated_validation_ids: []
+retained_validation:
+  - id: VALIDATION-ID
+    prior_evidence_url: URL
+    prior_evidence_sha256: SHA256
+    reason: TEXT
+executed_validation:
+  - id: VALIDATION-ID
+    command: COMMAND
+    result: PASS
+    evidence: OUTPUT_OR_URL
+reason_codes: []
+final_ci_gate:
+  policy: exact-current-head
+  reuse_allowed: false
+~~~
+
+Require the prior pairs to bind the exact preceding proposal and versioned or legacy Reviewer PASS. Require a complete fast-forward base delta, exact current-base ancestry, complete changed-file/blob identities, and a deterministic `impact_input_sha256` returned by `scripts/validation_impact.py`. Persist both complete non-truncated base-to-head promotion-patch record sets. Derive each promotion-patch digest with `promotion_patch_sha256`: validate the exact five-field changed-file identities; sort by `(status, old_path-or-empty, new_path-or-empty, old_blob_sha-or-empty, new_blob_sha-or-empty)`; hash UTF-8 canonical JSON containing `complete: true`, `truncated: false`, and those sorted records. Never accept a caller-supplied opaque digest that does not reproduce from the displayed records. Calculate `validation_inventory_sha256` over the exact displayed inventory using UTF-8 canonical JSON with sorted keys, compact separators, and no ASCII escaping. Require the validation inventory and global-trigger-path inventory to be explicitly complete. Require the patch records/digests, inventory/digest, delta, global-trigger completeness/list, and every other helper input to reproduce `impact_input_sha256`. Require the two derived promotion-patch digests to be equal for `reuse` or `incremental`.
+
+Require `impact_mode`, `invalidated_validation_ids`, `reason_codes`, and the retained ID set to equal the helper result exactly. Require unique IDs and require the validation-inventory IDs to equal the disjoint union of retained-validation IDs and executed-validation IDs. The executed-validation IDs must equal the helper's invalidated IDs. For `reuse`, both invalidated and executed lists are empty; require at least one exact retained-validation pair when reusable local validation existed. For `incremental`, require one passing current execution for every invalidated ID and retain every unaffected ID. Every retained pair must bind a whole persistent evidence comment that recorded the prior passing execution; chat, tool output, a Delivery observation, or an uncommitted result is invalid.
+
+Normalize, add, and independently read this complete comment back through the Pull Request transport. Its URL and whole-comment digest are the validation-impact identity. Copy the helper's `input_sha256` result exactly into `impact_input_sha256`. Keep the existing Proposal artifact schema-v1 `validation` item shape unchanged; it continues to contain only current executed command/result/evidence records. Require the versioned Reviewer PASS to bind the exact validation-impact URL/digest pair and to repeat exactly the successor proposal's current executed-validation records. The awaiting-confirmation callback binds that PASS transitively through its unchanged Reviewer PASS pair. The impact artifact is evidence only and never a workflow marker, active tip, confirmation, required-check result, merge permission, or Delivery observation.
+
+Do not persist this success artifact for a helper result of `full` or `blocked`. Run the required current validation for `full`; stop for `blocked`. An old lineage without this artifact, a malformed current artifact, incomplete dependency inventory, unknown helper schema, or mismatched URL/digest uses the old lineage full-validation fallback and never silently reuses local validation. The exact current head required CI is never reused, regardless of this artifact.
+
+### Context Promotion canonical review input
+
+Before dispatching a fresh Reviewer, build this exact ephemeral manifest. It is not a comment, marker, callback, Delivery observation, or recovery artifact:
+
+~~~yaml
+review_input_schema_version: 1
+review_policy_version: 1
+review_kind: context-promotion-no-write | context-promotion-write
+effective_review_tier: r0-no-write | r1-documentary | r2-stable-context | r3-normative
+reviewed_items:
+  - id: CONTEXT-1
+    tier: r0-no-write | r1-documentary | r2-stable-context | r3-normative
+source:
+  issue_url: URL
+  issue_body_sha256: SHA256
+  source_pr_url: URL
+  source_pr_title: TITLE
+  source_pr_body_sha256: SHA256
+  source_head_ref: BRANCH
+  source_head_sha: COMMIT
+  source_merge_commit_sha: COMMIT
+eligibility:
+  url: URL
+  sha256: SHA256
+proposal:
+  url: URL
+  sha256: SHA256
+memory:
+  url: URL
+  title: TITLE
+  body_sha256: SHA256
+  head_ref: BRANCH
+  head_sha: COMMIT
+  base_ref: develop
+  base_sha: COMMIT
+changed_files:
+  - path: PATH
+    status: added | modified | removed | renamed
+    previous_path: PATH | null
+    blob_sha: SHA | null
+validation_impact:
+  url: URL
+  sha256: SHA256
+executed_validation:
+  - command: COMMAND
+    result: PASS
+    evidence: OUTPUT_OR_URL
+~~~
+
+For `context-promotion-no-write`, require `memory: null`, `changed_files: []`, and `validation_impact: null`. For a write, require the complete memory tuple and non-empty changed files; the impact pair remains nullable. Require exact keys and no extras. Sort reviewed items by ID, changed files by `(path, status, previous_path-or-empty, blob_sha-or-empty)`, and executed validation by `(command, result, evidence)`.
+
+Use `scripts/context_review_input.py` to validate and canonicalize this object and calculate `review_input_sha256` over UTF-8 JSON with sorted keys, compact separators, and no ASCII escaping. Every field is recoverable from the versioned PASS plus its exact proposal/eligibility/current-source references; do not include operation-local payload IDs, aggregate search/comment snapshots, Bundle content digests, unified-diff digests, liveness fields, or the Bundle container digest. The Reviewer and Owner must calculate the same persistent digest. The Reviewer separately returns the ephemeral `consumed_bundle_sha256` so the same Owner can prove that the reviewed raw bytes and exact diff came from its current Bundle; never persist that Bundle digest or use it for later recovery.
+
 ### Reviewer PASS for no-write
 
 After the independent Reviewer returns a tuple-bound read-only PASS, have the Context Promotion Phase Owner write one top-level source product-PR evidence comment without a workflow marker:
 
 ~~~yaml
+review_schema_version: 1
+review_policy_version: 1
 review_kind: context-promotion-no-write
 verdict: PASS
+effective_review_tier: r0-no-write | r1-documentary | r2-stable-context | r3-normative
+review_input_sha256: SHA256
 issue_body_sha256: SHA256
 source_pr_body_sha256: SHA256
 source_head_ref: BRANCH
@@ -214,18 +356,28 @@ eligibility_registration_url: URL
 eligibility_registration_sha256: SHA256
 proposal_artifact_url: URL
 proposal_artifact_sha256: SHA256
+reviewed_items:
+  - id: CONTEXT-1
+    tier: r0-no-write | r1-documentary | r2-stable-context | r3-normative
+    result: PASS
+validation_impact_url: null
+validation_impact_sha256: null
 category_results: []
 ~~~
 
-The source tuple and eligibility pair must equal the artifact, and the proposal pair must bind that exact whole artifact comment. Require the complete five-category review result.
+The source tuple and eligibility pair must equal the artifact, and the proposal pair must bind that exact whole artifact comment. Require the complete five-category review result, exact proposal item coverage, and an effective tier equal to the maximum calculated by the phase. A no-write PASS cannot bind a validation-impact artifact.
 
 ### Reviewer PASS for a write
 
 After the independent Reviewer returns a tuple-bound read-only PASS, have the Context Promotion Phase Owner write one append-only Draft project-memory-PR comment:
 
 ~~~yaml
+review_schema_version: 1
+review_policy_version: 1
 review_kind: context-promotion-write
 verdict: PASS
+effective_review_tier: r1-documentary | r2-stable-context | r3-normative
+review_input_sha256: SHA256
 issue_url: URL
 issue_body_sha256: SHA256
 source_pr_url: URL
@@ -250,13 +402,23 @@ changed_files:
     status: added | modified | removed | renamed
     previous_path: PATH | null
     blob_sha: SHA | null
+reviewed_items:
+  - id: CONTEXT-1
+    tier: r0-no-write | r1-documentary | r2-stable-context | r3-normative
+    result: PASS
+validation_impact_url: URL | null
+validation_impact_sha256: SHA256 | null
 validation:
   - command: COMMAND
     result: PASS
     evidence: OUTPUT_OR_URL
 ~~~
 
-Require the source, eligibility, artifact, memory-PR, and changed-file identities to equal the exact proposal and transport reads. `changed_files` is sorted and exact. Every validation entry represents an executed passing check. Any PR, tuple, diff, or validation change invalidates this PASS.
+Require the source, eligibility, artifact, memory-PR, and changed-file identities to equal the exact proposal and transport reads. `changed_files` is sorted and exact. Require `reviewed_items` to cover every proposal item exactly once with its calculated tier and require `effective_review_tier` to equal their maximum plus every global escalation. Every validation entry represents an executed passing check and must equal the Proposal artifact's executed-validation records exactly. Populate the validation-impact pair only for an exact independently read current artifact; both fields are null otherwise. When non-null, its `executed_validation` records must also equal the subset it identifies as invalidated and executed for this tuple. Any PR, tuple, diff, executed validation, impact artifact, or semantic review-input change invalidates this PASS.
+
+Require `review_input_sha256` to equal the exact **Context Promotion canonical review input** helper result. The ephemeral Reviewer returns this digest plus `consumed_bundle_sha256`; the Context Promotion Phase Owner must require the latter to equal its current same-round Bundle, recompute the persistent semantic review-input digest, and persist only `review_input_sha256`. Later recovery rebuilds that digest from persistent artifacts and immutable semantic source identities, never from a historical Bundle.
+
+Dual-read an already persisted unversioned Reviewer PASS only when it has exactly the former field set for its `review_kind`, all existing tuple/digest/validation/category rules pass, and no `review_schema_version` field is present. Define that exact historical field set as the corresponding current fenced form after removing only `review_schema_version`, `review_policy_version`, `effective_review_tier`, `review_input_sha256`, `reviewed_items`, `validation_impact_url`, and `validation_impact_sha256`; retain every other field and order shown. Treat that record as `legacy-full`, semantically equivalent to `r3-normative`; do not rewrite or downgrade it. New review writes always use the versioned form. A record declaring `review_schema_version: 1` or `review_policy_version: 1` but omitting or mismatching any required tier, item, digest, or impact field is malformed current evidence, never an unversioned legacy PASS.
 
 ### Awaiting-confirmation callback
 
@@ -316,7 +478,7 @@ For a normal initial proposal, predecessor, legacy-evidence, supersession, and i
 
 For a user revision or promotion-scope repair, `previous_comment_*` binds the active superseded schema-v2 tip. A user revision may supersede only an unconfirmed proposal and leaves all invalidation pairs null. A repair from a confirmed tip populates `invalidates_confirmation_*`; a repair from a Ready tip also populates `invalidates_ready_*`. A branch retaining legacy evidence keeps its exact legacy pair unchanged.
 
-The proposal, review, eligibility, authority base, source tuple, memory tuple, and changed files must match the independently read artifacts. For a write, the complete memory tuple is non-null and `authority_base_sha == memory_base_sha`. For no-write, the memory tuple and changed files are null/empty.
+The proposal, review, eligibility, authority base, source tuple, memory tuple, and changed files must match the independently read artifacts. For a new proposal, require the exact versioned Reviewer PASS, its computed tier/item coverage, and any bound validation-impact artifact. Continue an unchanged historical lineage with one exact `legacy-full` PASS only under its dual-read rules. For a write, the complete memory tuple is non-null and `authority_base_sha == memory_base_sha`. For no-write, the memory tuple and changed files are null/empty.
 
 ### Confirmed callback
 
@@ -546,7 +708,9 @@ For a legacy migration, establish the first schema-v2 `awaiting-confirmation` co
 
 ## Preserve compatibility
 
-- Keep all artifact field names, enum values, marker forms, schema versions, and digest algorithms above stable.
+- Keep all callback field names, enum values, marker forms, schema versions, and digest algorithms above stable. Treat the versioned Reviewer PASS and markerless validation-impact artifact as the explicit additive migration defined here, not as permission to extend another fenced schema silently.
+- Continue dual-reading an exact unversioned Reviewer PASS as `legacy-full`, equivalent to `r3-normative`; never rewrite, upgrade, or downgrade it, and never require its historical producer to have written tier, review-input, item-coverage, or validation-impact fields. New PASS writes use only `review_schema_version: 1`.
+- Treat validation-impact evidence as optional only for old/full-validation paths. Reuse or incremental validation requires the exact current artifact; its absence never weakens validation or required CI.
 - Keep the unversioned eligibility and promotion dual-read paths. Never reinterpret malformed schema v2 as legacy or require a historical field that its producer did not promise.
 - Keep standalone `closeout` and `context-promotion` entries able to produce and consume the same artifacts. They retain their phase-scoped authority and stopping rules; this contract grants no coordinator authority to them.
 - Keep `delivery` a read/validation consumer of these schemas. It cannot produce a phase verdict, proposal, review, confirmation, Ready callback, or terminal callback.

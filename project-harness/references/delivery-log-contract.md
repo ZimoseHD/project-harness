@@ -11,6 +11,7 @@ Persist one concise, source-bound observation after every bounded Delivery stage
 - Forbid Phase Owners, their direct read-only Workers, and independent Reviewers from writing Delivery observations. Only the Delivery Coordinator owns this audit mutation.
 - Derive every claim from independently re-read Issue, PR, comment, ref, check, merge, or repository evidence. The only exception is the response enum and modification-item count read directly from the current explicit proposal-bound confirmation re-entry; never reconstruct that exception after interruption.
 - Never let an observation authorize phase dispatch, PASS, Context Promotion confirmation, PR merge, Issue closure, or a durable-memory update.
+- Never persist an operation-local Evidence Bundle or its normalized payloads in a Delivery observation. The Bundle is not workflow evidence, and neither a Delivery observation nor project memory may become its storage or recovery layer.
 - Never place observations in the Issue Body, any PR Body, repository files, `.project-memory`, or an authority layer.
 - Treat an edited, deleted, malformed, forged, stale, or missing observation as an audit/compliance defect only: it never invalidates or rolls back the underlying authoritative transition. Reconstruct workflow state from the original artifacts, then append a corrected observation without repeating the phase, confirmation, merge, or close mutation. The current Delivery may pause before its next irreversible transition, and may not declare completion, until its required observation obligation is satisfied.
 
@@ -259,11 +260,14 @@ Treat every Delivery observation as single-task chronology and always `no_write`
 
 ## Deduplicate and backfill safely
 
-Before writing, require the Issue transport to enumerate all source Issue comments completely, including pagination, and return `comments_complete: true`. Filter candidates by exact `record_kind`, schema, verified transport author, Issue URL/digest, and source evidence.
+At Delivery reconstruction, require the Issue transport to enumerate all source Issue comments completely, including pagination, and return `comments_complete: true`. Build one operation-local, author-verified observation inventory by filtering exact `record_kind`, schema, Issue URL/digest, and source evidence. Reuse that inventory for ordinary live observation writes in the same coordinator invocation and add each independently read-back new observation to it. Do not require full pagination before every observation comment.
 
-- Return `no-op` only when an existing whole comment exactly matches the desired normalized Body.
+A normal observation write uses the in-memory inventory and exact returned comment ID and does not need complete pagination. Ambiguous response recovery requires complete pagination; clean recovery without a complete current inventory requires complete pagination; final coverage requires complete pagination.
+
+- Return `no-op` only when an existing whole comment exactly matches the desired normalized Body, and only when that candidate comes from a proven complete current inventory.
 - Allow multiple valid observations with one transition key as harmless audit duplicates. Never choose workflow state by the newest duplicate.
-- If a response is ambiguous, do not retry. Search/read the complete candidate set and accept success only when exact Body/digest evidence proves the original comment exists.
+- If a response is ambiguous, do not retry. Search/read the complete paginated candidate set and accept success only when exact Body/digest evidence proves the original comment exists.
+- Require a new complete paginated inventory when a clean recovery/backfill does not retain a proven complete current inventory, when target/comment capability changed, or before manifest, closure, or completion coverage. A concurrent unseen duplicate during an ordinary live write is harmless audit duplication and is discovered by the next required complete inventory; it never authorizes workflow progress.
 - Ignore an invalid or untrusted observation for coverage and report it as a log diagnostic. It cannot invalidate original phase evidence.
 - If durable evidence proves a boundary completed but no valid observation exists, append a reconstructed observation with null elapsed time before advancing.
 - If a stage failed without stable evidence, do not invent a historical attempt observation. The same rule applies to a confirmation response no longer present in the current explicit re-entry.
@@ -272,7 +276,7 @@ Before writing, require the Issue transport to enumerate all source Issue commen
 
 ## Require three coverage levels
 
-For a confirmed no-write path, require exact active observations for:
+Before evaluating any coverage level, discard the operation-local write inventory and perform complete pagination for one current read. This final coverage read is always exhaustive. For a confirmed no-write path, require exact active observations for:
 
 1. `implementation-verified-draft`
 2. `closeout-accepted-ready`

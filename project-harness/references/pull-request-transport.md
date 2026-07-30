@@ -64,6 +64,8 @@ For a requested diff, return the complete transport-produced unified diff normal
 
 ## Protect every mutation
 
+Treat this section as the root Skill's `L2 atomic-mutation-guard`. An operation-local Evidence Bundle may avoid re-downloading unchanged semantic content, but it cannot replace any target baseline, immediate pre-write comparison, mutation recovery, or independent read-back below.
+
 1. Fetch the exact PR and the minimum comment/check state needed to prove identity and establish a baseline.
 2. Normalize and digest every baseline Markdown field involved in the operation.
 3. Compare desired state with the baseline. Return no-op after independent verification when every requested field already matches.
@@ -83,6 +85,8 @@ For create-draft, search immediately before creation and never create when the c
 
 Treat merge as an irreversible integration mutation, not as a convenience state change.
 
+Treat this section as the root Skill's `L3 irreversible-gate`. An Evidence Bundle does not replace or substitute for this merge guard.
+
 1. Require `role: delivery` authority for the exact Issue lineage and a caller-selected `merge_method` resolved from a valid Harness integration policy: schema-v2 uses the configured product or project-memory method; schema-v1 compatibility uses the sole authoritatively available method. Never choose or substitute a method in the transport.
 2. Require the exact expected PR title, normalized Body digest, Ready/open state, head ref/SHA, base ref `develop`, base SHA, successful required checks with `required_checks_known: true`, and `mergeable: true` or the selected transport's authoritative equivalent. Treat unknown mergeability as blocked, not as permission to attempt the irreversible mutation.
 3. Require caller-supplied persistent gate evidence URL/digest pairs. For a product PR these identify Closeout PASS, the Issue callback, and eligibility registration. For a project-memory PR they identify the proposal artifact, confirmation, Reviewer PASS, and memory-pr-ready callback. Return blocked when any required URL or normalized whole-comment digest is absent; leave semantic validation to the `delivery` caller.
@@ -92,6 +96,8 @@ Treat merge as an irreversible integration mutation, not as a convenience state 
 7. Send one merge mutation. Do not retry a timeout or missing response.
 8. Recover an ambiguous response only by independently fetching the exact PR and evidence, then proving `merged: true`, the expected tuple, all protocol-owned evidence pairs, and a non-null merge commit identity. Otherwise return `indeterminate`.
 9. After a successful response, independently fetch the PR through the same transport and verify `state: closed`, `merged: true`, the expected title/Body/head/base lineage, preserved non-base protected fields, all gate evidence, and a non-null merge commit identity. Produce `merge_provenance` only from an authoritative merge event, verified commit provenance, or the mutation plus independent read-back; it must bind the guarded base SHA, guarded head SHA, merge commit SHA, evidence source, and `verified: true`. A caller-supplied or copied expected base is not provenance. If the transport exposes the live base branch tip after merge instead of the guarded pre-merge base SHA, use this verified record rather than comparing the advanced live tip as though it were unchanged.
+
+Require every required check and required CI result from the exact current head. Never reuse or carry forward an old-head or previous-head required check, even when a validation-impact artifact retains local validation.
 
 Never weaken a merge gate because branch protection would have rejected an unsafe request. Repository acceptance and Harness evidence remain separate requirements.
 
