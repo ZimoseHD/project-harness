@@ -7,7 +7,7 @@ Assess durable context after an eligible product Pull Request merges, produce an
 ## Contents
 
 - Enforce the phase boundary
-- Accept only persistent input
+- Accept the public semantic input
 - Reuse one exact Evidence Bundle
 - Verify the source and promotion state chain
 - Classify promotable knowledge
@@ -42,17 +42,9 @@ Assess durable context after an eligible product Pull Request merges, produce an
 
 Return awaiting-confirmation, verified-memory-pr, memory-pr-merged, no-promotion, return-to-definition, or blocked.
 
-## Accept only persistent input
+## Accept the public semantic input
 
-For a standalone entry, require:
-
-~~~yaml
-role: context-promotion
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-  - https://github.com/owner/repo/pull/456
-next_action: Propose, confirm, and reconcile validated reusable knowledge.
-~~~
+Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: context-promotion`, one Issue URL and one merged product PR URL in the current user message. Treat those URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce a generated hand-off envelope.
 
 When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: context-promotion`. Depending on the current state, require separate bound product-PR and memory-PR snapshots plus exact acceptance, eligibility, proposal, confirmation, Reviewer PASS, or merge evidence comments. For any approval, revision, or pause confirmation round, require the host-provenance-bound `user_decision` fields derived from the current explicit `role: delivery` confirmation re-entry. For standalone, require those fields directly in the current explicit `role: context-promotion` re-entry. Verify their proposal URL/digest against the sole active state before use and apply the root Skill's layered freshness rules before relying on cached content.
 

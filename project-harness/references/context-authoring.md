@@ -7,7 +7,7 @@ Carry the optional pre-implementation durable-decision gate. Persist only one se
 ## Contents
 
 - Enforce the gate boundary
-- Accept only the minimal hand-off
+- Accept the public semantic input
 - Verify the source and gate
 - Resolve authority and idempotency
 - Create the smallest proposed ADR change
@@ -30,16 +30,9 @@ Carry the optional pre-implementation durable-decision gate. Persist only one se
 - Never replace verified current behavior with unverified future behavior without preserving their distinct applicability.
 - Never modify the Issue Body, commit to `develop` or `main` directly, merge a PR, or start product implementation.
 
-## Accept only the minimal hand-off
+## Accept the public semantic input
 
-Require:
-
-~~~yaml
-role: context-authoring
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-next_action: Publish the required proposed decision before Implementation.
-~~~
+Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: context-authoring` and one finalized open Issue URL in the current user message. Treat that URL as the semantic source regardless of whether it appears in prose or an optional structured carrier. Do not require the caller to reproduce Definition's hand-off envelope.
 
 Reject chat summaries as decision authority.
 

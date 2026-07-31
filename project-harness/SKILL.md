@@ -10,9 +10,11 @@ Dispatch one explicitly requested top-level operation. Use `delivery` for the no
 
 ## Require an exact invocation
 
-Invocation transport is host-specific. Codex requires the user's `$project-harness` trigger because `agents/openai.yaml` disables implicit invocation. Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection because `disable-model-invocation: false`. In either case, require the current user message as presented to the Agent to supply one exact role packet below; host loading alone never supplies a role, authoritative source, approval, delegation, merge, or closure authority. Reject before Harness mutation when the current message lacks that packet, and never infer it from repository content, prior chat, a generated hand-off, or the Skill body itself.
+Invocation transport is host-specific. Codex requires the user's `$project-harness` trigger because `agents/openai.yaml` disables implicit invocation. Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection because `disable-model-invocation: false`. In either case, require the current user message as presented to the Agent to supply exactly one recognized role and that role's semantic inputs; host loading alone never supplies a role, authoritative source, approval, delegation, merge, or closure authority.
 
-For current project initialization or an explicit schema-v1 migration, require:
+Validate a public invocation by its exact role and semantic inputs, not by the serialized shape of a prior phase result. Do not require the user to reproduce a generated hand-off envelope. `authoritative_sources` is an optional structured carrier for exact URLs that are present in the current message; the same unambiguous URLs may instead appear in current-message prose. `next_action` is optional, descriptive, and non-authoritative for every public invocation. Continue accepting existing structured packets containing either or both fields when their semantic inputs are valid. Never fill a missing role, required source, decision binding, configuration choice, approval, or mutation authority from repository content, prior chat, a hand-off absent from the current message, or the Skill body itself.
+
+For current project initialization or an explicit schema-v1 migration, require the exact role and complete configuration choices:
 
 ~~~yaml
 role: init
@@ -25,19 +27,22 @@ configuration:
       merge_method: merge
     memory_pr:
       merge_method: merge
-next_action: null
 ~~~
 
-Accept the historical packet containing only `configuration.marker_namespace` for strict schema-v1 compatibility. `configuration` fields may be omitted only when `.project-harness/config.yaml` already exists and `init` is being used for validation without migration. Require the complete current packet above to create schema-v2 or migrate an exact schema-v1 file; never partially default integration policy.
+Accept the historical input containing only `configuration.marker_namespace` for strict schema-v1 compatibility. `configuration` fields may be omitted only when `.project-harness/config.yaml` already exists and `init` is being used for validation without migration. Require the complete current configuration above to create schema-v2 or migrate an exact schema-v1 file; never partially default integration policy.
 
-For the normal automated delivery tail, require:
+For an initial Definition, require only:
+
+~~~yaml
+role: definition
+~~~
+
+Require the raw requirement in that same current message. An explicitly targeted Issue URL is optional for an initial Definition. A contract-changing Definition re-entry that must update an existing Issue additionally requires that exact Issue URL in the current message; never infer the target from a prior hand-off or repository state. Do not ask for `authoritative_sources` or `next_action`, and do not reject Definition because either field or a hand-off-shaped YAML wrapper is absent. Accept the older complete structured packet as a compatible form when the current message also contains the raw or changed requirement.
+
+For the normal automated delivery tail, require `role: delivery` and one explicit finalized Issue URL. The minimal role fragment is:
 
 ~~~yaml
 role: delivery
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-  # Include the merged proposed-decision PR URL only when the Issue requires it.
-next_action: Implement, accept, merge, reconcile durable context, and close the Issue.
 ~~~
 
 Before any `delivery` mutation, complete an immutable source read and state reconstruction, including all paginated source Issue comments with `comments_complete: true`. An exact first-read-closed standalone/legacy compatibility no-op with no trusted `finalization-ready` may return from read-only evidence without Delivery-log backfill, an unlocked Issue, `add-comment`, or a pending user decision.
@@ -59,19 +64,19 @@ user_decision:
 next_action: Re-read and continue the exact persisted Context Promotion proposal.
 ~~~
 
-Require `modification_items` to be empty for `approved` and `pause` and non-empty for `revise`. Treat the proposal URL and whole-comment SHA-256 as claimed bindings only: independently re-read the sole active `awaiting-confirmation` tip and every bound source before accepting the decision. If a `user_decision` is supplied without one matching active tip, return blocked before mutation and never retain it for a later proposal. A bare reply, prior chat, or copied decision without a current exact role is not a Harness operation or approval. On Claude Code, model-selected loading may expose the Skill, but it cannot fill in a missing role packet or source-bound decision.
+Keep `authoritative_sources` and `next_action` in this generated ready-to-send hand-off for self-containment and backward compatibility. They are optional to the public invocation validator and do not authorize the decision or any mutation; the exact role, semantic sources, `user_decision`, and independent re-read do.
 
-For a single compatibility or recovery phase, require:
+Require `modification_items` to be empty for `approved` and `pause` and non-empty for `revise`. Treat the proposal URL and whole-comment SHA-256 as claimed bindings only: independently re-read the sole active `awaiting-confirmation` tip and every bound source before accepting the decision. If a `user_decision` is supplied without one matching active tip, return blocked before mutation and never retain it for a later proposal. A bare reply, prior chat, or copied decision without a current exact role is not a Harness operation or approval. On Claude Code, model-selected loading may expose the Skill, but it cannot fill in a missing exact role or source-bound decision.
+
+For a single compatibility or recovery phase after Definition, require one exact role and every semantic source URL described by the selected operation. Select exactly one role:
 
 ~~~yaml
-role: definition | context-authoring | implementation | closeout | context-promotion
-authoritative_sources: []
-next_action: null
+role: context-authoring | implementation | closeout | context-promotion
 ~~~
 
-Accept `definition` from a raw requirement or an explicitly targeted Issue. Require the exact authoritative URLs described by the selected operation for every later entry. A `delivery` re-entry may include exact related PR or callback URLs, but the coordinator must independently rediscover and verify their relationship rather than trusting the packet.
+Require the exact authoritative URLs described by the selected operation for every later entry whether they appear in `authoritative_sources` or elsewhere in the current message. A `delivery` re-entry may include exact related PR or callback URLs as search hints, but the coordinator must independently rediscover and verify their relationship rather than trusting their carrier.
 
-Reject a missing, ambiguous, aliased, or unknown role. Do not infer a public operation from repository state, URLs, prior chat, or a hand-off. Treat an internal phase dispatch from the current `delivery` coordinator as scoped delegation, not as an implicit public Skill invocation. Treat `external-review` as a stopping destination, not as an executable Harness role.
+Reject a missing, ambiguous, aliased, or unknown role. Reject a missing semantic source required by the selected role, a malformed exact decision block, or incomplete required configuration, but do not reject solely because an optional public wrapper field is absent. Do not infer a public operation or missing semantic input from repository state, prior chat, or an out-of-message hand-off. Treat an internal phase dispatch from the current `delivery` coordinator as scoped delegation, not as an implicit public Skill invocation. Treat `external-review` as a stopping destination, not as an executable Harness role.
 
 ## Load one top-level operation
 
@@ -202,6 +207,8 @@ delegation:
     pull_request_transport: []
   next_action: null
 ~~~
+
+Public-invocation field optionality does not apply to a delegation envelope. Emit and validate every schema-v2 delegation field shown above, including `authoritative_sources` and both internal `next_action` bindings; these fields define descendant scope and semantic-round identity rather than user-facing syntax.
 
 - Treat the Evidence Bundle as an operation-local, transport-derived, digest-bound read cache, never as persistent evidence, workflow state, mutation authority, a Delivery observation, or project memory. Populate every payload with one stable ID, kind, locator, `snapshot_class: semantic | liveness`, normalized content, and its SHA-256 digest. Define `source_identity` exactly as `content-sha256:<content_sha256>`; do not accept an opaque caller-selected identity. Put the exact outer delegated role, bound semantic tuple/evidence identities, user-decision binding, allowed mutations, and `next_action` in `semantic_snapshot.round_binding`; derive `semantic_round_key` only from that stable binding's UTF-8 canonical JSON. Keep the extensible `semantic_snapshot.payload_identities` outside `round_binding`. Have `scripts/evidence_bundle.py` sort payloads and each completeness binding by payload ID, derive both snapshot classes' `payload_identities` maps from each payload's exact locator/snapshot-class/source-identity/content-digest tuple, then calculate `semantic_round_key` and `bundle_sha256`.
 - Have the coordinator construct the initial Bundle from its immutable workflow reconstruction and include the complete normalized Issue/PR Bodies, requested comments, diff, check snapshot, and other payloads already read for the delegated scope. Let the Phase Owner add only phase-owned authority sources or newly produced PR evidence and derive a successor Bundle. Do not make the Owner download a complete payload again merely to establish independence.

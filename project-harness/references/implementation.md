@@ -7,7 +7,7 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 ## Contents
 
 - Enforce the phase boundary
-- Accept only the minimal input
+- Accept the public semantic input
 - Bind the Issue contract
 - Verify the pre-implementation durable-decision gate
 - Resolve one active branch and PR
@@ -21,7 +21,7 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 ## Enforce the phase boundary
 
 - Start only from an explicit Issue URL and either a current standalone Implementation invocation or a host-provenance-bound delegation from the current explicit `delivery` invocation.
-- Treat the current user message's exact host-valid `role: implementation` packet under the root Skill's invocation-adapter contract as authority to modify product code and tests, create or resume one task branch, commit, push, and create or update one Draft PR. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources. Do not derive authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary implementation request, or prior run.
+- Treat the current user message's exact host-valid `role: implementation` invocation and required semantic inputs under the root Skill's public-invocation adapter as authority to modify product code and tests, create or resume one task branch, commit, push, and create or update one Draft PR. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources. Do not derive authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary implementation request, or prior run.
 - Keep the Issue as the only delivery contract.
 - Treat the Issue implementation plan as a non-binding starting prediction.
 - Preserve model autonomy over exploration, code structure, task decomposition, commit cadence, debugging, risk-proportionate test selection, and the useful number of direct read-only Workers.
@@ -32,19 +32,11 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 - Stop at verified-draft-pr, return-to-definition, or blocked and return control to the coordinator when delegated.
 - Never edit the Issue contract, mark a PR Ready, merge or close, write durable project memory, issue a Closeout verdict, approve Context Promotion, or declare final delivery.
 
-## Accept only the minimal input
+## Accept the public semantic input
 
-Require:
+Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: implementation`, one finalized Issue URL, and the merged proposed-decision PR URL when the Issue requires it. Treat those current-message URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce a generated hand-off envelope.
 
-~~~yaml
-role: implementation
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-  # Include the merged proposed-decision PR URL only when the Issue requires it.
-next_action: Implement the Issue and produce a verified Draft PR.
-~~~
-
-When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: implementation`. For a repair, require the existing Draft PR URL and latest exact Closeout FAIL comment URL in `authoritative_sources` or `persistent_evidence_urls`. Re-read both completely; do not rely on the coordinator's explanation of the failure.
+When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: implementation`. For a standalone repair, require the existing Draft PR URL and latest exact Closeout FAIL comment URL in the current user message. For a delegated repair, require them in the bound snapshot or `persistent_evidence_urls`. Re-read both completely; do not rely on the coordinator's explanation of the failure.
 
 Reject chat text that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, or acceptance contract. Return return-to-definition instead of treating such text as a hidden requirement.
 

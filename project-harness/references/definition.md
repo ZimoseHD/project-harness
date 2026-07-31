@@ -7,6 +7,7 @@ Carry the Definition phase by turning an original requirement into the single Gi
 ## Contents
 
 - Enforce the boundary
+- Accept the initial semantic input
 - Delegate GitHub Issue operations
 - Capture the request and run the preflight
 - Run bounded grilling
@@ -25,6 +26,10 @@ Carry the Definition phase by turning an original requirement into the single Gi
 - Do not implement product code, modify tests, create a Pull Request, or write durable project memory. Route a required pre-implementation durable-decision change to a new `project-harness` invocation with `role: context-authoring` after Issue publication.
 - Keep drafts, decision packets, and review packets ephemeral. Persist task facts only in the GitHub Issue.
 - Fail closed whenever a required decision, independent Reviewer, GitHub write, or read-back verification is unavailable.
+
+## Accept the initial semantic input
+
+Apply the root Skill's public-invocation adapter. Require an exact `role: definition` and the raw or changed requirement in the current user message. For an initial Definition, accept an optional explicitly targeted Issue URL; when the user intends to update an existing contract, require that exact Issue target in the current message. Otherwise define a new task only after duplicate checks. Do not require the user to reproduce an upstream hand-off envelope or supply placeholder routing metadata.
 
 ## Use the internal GitHub transports
 

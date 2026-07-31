@@ -83,7 +83,7 @@ class OrchestrationContractTests(ProtocolAssertions):
             invocation,
             (
                 "role: delivery",
-                "role: definition | context-authoring | implementation | closeout | context-promotion",
+                "role: context-authoring | implementation | closeout | context-promotion",
                 "normal automated delivery tail",
                 "single compatibility or recovery phase",
             ),
@@ -136,7 +136,8 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Claude Code may load the Skill from the user's `/project-harness` trigger or by model selection",
                 "`disable-model-invocation: false`",
                 "host loading alone never supplies a role",
-                "Reject before Harness mutation when the current message lacks that packet",
+                "Validate a public invocation by its exact role and semantic inputs",
+                "Do not require the user to reproduce a generated hand-off envelope",
             ),
             source="cross-host invocation adapter contract",
         )
@@ -149,13 +150,156 @@ class OrchestrationContractTests(ProtocolAssertions):
                 self.assertContainsAll(
                     boundary,
                     (
-                        f"current user message's exact host-valid `role: {role}` packet",
-                        "root Skill's invocation-adapter contract",
+                        f"current user message's exact host-valid `role: {role}` invocation",
+                        "required semantic inputs",
+                        "root Skill's public-invocation adapter",
                         "host/model loading or automatic routing by itself",
                     ),
                     source=f"{role} standalone authority",
                 )
                 self.assertNotIn("explicit `$project-harness`", boundary)
+
+    def test_public_invocations_validate_semantics_not_handoff_envelopes(
+        self,
+    ) -> None:
+        invocation = markdown_section(self.skill, "Require an exact invocation")
+
+        self.assertContainsAll(
+            invocation,
+            (
+                "`authoritative_sources` is an optional structured carrier",
+                "`next_action` is optional, descriptive, and non-authoritative",
+                "Continue accepting existing structured packets",
+                "For an initial Definition, require only",
+                "role: definition",
+                "raw or changed requirement",
+                "Do not ask for `authoritative_sources` or `next_action`",
+                "A contract-changing Definition re-entry that must update an existing Issue additionally requires that exact Issue URL",
+                "Reject a missing semantic source required by the selected role",
+            ),
+            source="root public invocation adapter",
+        )
+        self.assertNotIn(
+            "role: definition | context-authoring | implementation | closeout | context-promotion",
+            invocation,
+        )
+        self.assertNotIn("one exact role packet below", invocation)
+        self.assertNotIn("when the current message lacks that packet", invocation)
+
+        initial_definition_input = invocation.split(
+            "For an initial Definition, require only:",
+            maxsplit=1,
+        )[1].split("For the normal automated delivery tail", maxsplit=1)[0]
+        normal_delivery_input = invocation.split(
+            "For the normal automated delivery tail",
+            maxsplit=1,
+        )[1].split("Before any `delivery` mutation", maxsplit=1)[0]
+        compatibility_input = invocation.split(
+            "For a single compatibility or recovery phase after Definition",
+            maxsplit=1,
+        )[1].split(
+            "Require the exact authoritative URLs described by the selected operation",
+            maxsplit=1,
+        )[0]
+        for name, public_fragment in (
+            ("initial Definition", initial_definition_input),
+            ("normal Delivery", normal_delivery_input),
+            ("compatibility role", compatibility_input),
+        ):
+            with self.subTest(public_role_fragment=name):
+                self.assertNotIn("next_action:", public_fragment)
+                self.assertNotIn("authoritative_sources:", public_fragment)
+
+        confirmation_handoff = invocation.split(
+            "For a Context Promotion decision after that summary",
+            maxsplit=1,
+        )[1].split("Require `modification_items`", maxsplit=1)[0]
+        self.assertContainsAll(
+            confirmation_handoff,
+            (
+                "authoritative_sources:",
+                "next_action:",
+                "generated ready-to-send hand-off",
+                "optional to the public invocation validator",
+            ),
+            source="compatible generated confirmation handoff",
+        )
+
+        public_inputs = (
+            (
+                "init",
+                self.init,
+                "Accept the public initialization input",
+                ("exact `role: init`", "complete schema-v2 configuration"),
+            ),
+            (
+                "definition",
+                self.definition,
+                "Accept the initial semantic input",
+                (
+                    "exact `role: definition`",
+                    "raw or changed requirement",
+                    "optional explicitly targeted Issue URL",
+                ),
+            ),
+            (
+                "context-authoring",
+                self.context_authoring,
+                "Accept the public semantic input",
+                ("exact `role: context-authoring`", "one finalized open Issue URL"),
+            ),
+            (
+                "delivery",
+                self.delivery,
+                "Accept the delivery input",
+                (
+                    "exact `role: delivery`",
+                    "one finalized Issue URL",
+                    "merged proposed-decision PR URL when the Issue requires it",
+                ),
+            ),
+            (
+                "implementation",
+                self.implementation,
+                "Accept the public semantic input",
+                (
+                    "exact `role: implementation`",
+                    "one finalized Issue URL",
+                    "merged proposed-decision PR URL when the Issue requires it",
+                ),
+            ),
+            (
+                "closeout",
+                self.closeout,
+                "Accept the public semantic input",
+                (
+                    "exact `role: closeout`",
+                    "one Issue URL and one Draft product PR URL",
+                ),
+            ),
+            (
+                "context-promotion",
+                self.promotion,
+                "Accept the public semantic input",
+                (
+                    "exact `role: context-promotion`",
+                    "one Issue URL and one merged product PR URL",
+                ),
+            ),
+        )
+        for role, text, heading, semantic_requirements in public_inputs:
+            section = markdown_section(text, heading)
+            with self.subTest(public_role=role):
+                self.assertContainsAll(
+                    section,
+                    (
+                        "root Skill's public-invocation adapter",
+                        *semantic_requirements,
+                    ),
+                    source=f"{role} public semantic input",
+                )
+                self.assertNotIn("next_action:", section)
+                self.assertNotIn("authoritative_sources:", section)
 
     def test_upstream_handoffs_describe_the_split_turn_delivery_boundary(self) -> None:
         definition_handoff = markdown_section(self.definition, "6. Hand off and stop")
@@ -739,14 +883,19 @@ class OrchestrationContractTests(ProtocolAssertions):
         self.assertContainsAll(
             delegation,
             (
+                "schema_version: 2",
                 "parent_role: delivery",
                 "delegated_role: implementation | closeout | context-promotion",
+                "authoritative_sources: []",
                 "bound_snapshot:",
                 "persistent_evidence_urls: []",
                 "allowed_mutations:",
                 "repository: []",
                 "issue_transport: []",
                 "pull_request_transport: []",
+                "next_action: null",
+                "Public-invocation field optionality does not apply to a delegation envelope",
+                "An unknown delegation or Bundle schema is blocked",
                 "host parent-child provenance",
                 "Phase Owner and sole holder of that phase's mutation set",
                 "only direct, narrow, read-only Workers or one fresh independent Reviewer",
@@ -761,6 +910,11 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "Forbid every descendant from merging a PR, closing the source Issue, approving a Context Promotion proposal for the user",
             ),
             source="root delegation envelope",
+        )
+        self.assertEqual(
+            delegation.count("next_action: null"),
+            2,
+            "delegation must retain both round-binding and outer next_action fields",
         )
 
         self.assertContainsAll(
@@ -882,7 +1036,7 @@ class OrchestrationContractTests(ProtocolAssertions):
     ) -> None:
         init_input = markdown_section(
             self.init,
-            "Accept only the initialization packet",
+            "Accept the public initialization input",
         )
         init_v2 = markdown_section(self.init, "Write schema version 2")
         init_v1 = markdown_section(self.init, "Dual-read schema version 1")
@@ -895,7 +1049,7 @@ class OrchestrationContractTests(ProtocolAssertions):
         root_policy = markdown_section(self.skill, "Bind repository policy and mutations")
 
         for source, section in (
-            ("init packet", init_input),
+            ("init public input", init_input),
             ("schema-v2 config", init_v2),
         ):
             self.assertContainsAll(
@@ -976,7 +1130,7 @@ class OrchestrationContractTests(ProtocolAssertions):
                 "unchanged namespace",
                 "authoritative available-method set",
                 "both unresolved product/project-memory policy choices",
-                "only the user's later explicit `init` packet may complete those fields",
+                "only the user's later explicit `init` invocation may supply those semantic configuration choices",
                 "recovery_condition: configured-merge-method-unavailable",
                 "never choose another enabled method or ask the user to merge manually",
                 "merge the exact accepted product PR into `develop` automatically",
@@ -1501,6 +1655,10 @@ class OrchestrationContractTests(ProtocolAssertions):
         )
 
     def test_phase_results_are_snapshot_bound_and_coordinator_addressed(self) -> None:
+        context_authoring_result = markdown_section(
+            self.context_authoring,
+            "Return a closed result",
+        )
         implementation_result = markdown_section(
             self.implementation,
             "Return a persistent phase result",
@@ -1510,6 +1668,28 @@ class OrchestrationContractTests(ProtocolAssertions):
             self.promotion,
             "Return a persistent phase result",
         )
+        delivery_result = markdown_section(
+            self.delivery,
+            "Return the delivery result",
+        )
+
+        for name, result in (
+            ("Context Authoring", context_authoring_result),
+            ("Implementation", implementation_result),
+            ("Closeout", closeout_result),
+            ("Context Promotion", promotion_result),
+            ("Delivery", delivery_result),
+        ):
+            with self.subTest(compatible_output_handoff=name):
+                self.assertContainsAll(
+                    result,
+                    (
+                        "handoff:",
+                        "authoritative_sources: []",
+                        "next_action: null",
+                    ),
+                    source=f"{name} compatible output handoff",
+                )
 
         self.assertContainsAll(
             implementation_result,

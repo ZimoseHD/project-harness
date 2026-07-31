@@ -39,15 +39,7 @@ Return completed, return-to-definition, or blocked.
 
 ## Accept the delivery input
 
-Require:
-
-~~~yaml
-role: delivery
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-  # Include the merged proposed-decision PR URL only when the Issue requires it.
-next_action: Implement, accept, merge, reconcile durable context, and close the Issue.
-~~~
+Apply the root Skill's public-invocation adapter. Require an exact `role: delivery`, one finalized Issue URL, and the merged proposed-decision PR URL when the Issue requires it. Treat those current-message URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce a generated hand-off envelope.
 
 Accept exact related product PR, acceptance comment, promotion callback, or project-memory PR URLs on re-entry only as search hints. Re-read them and prove their relationship to the Issue before use. Reject chat summaries as delivery state or authority.
 
@@ -63,7 +55,7 @@ For every remaining path that may mutate or backfill, complete this state-aware 
 2. Inspect every acceptance item for visual, business, real-device, external-system, or other human-only evidence. Require each applicable item already to have a persistent explicit confirmation URL and whole-comment digest bound to the exact current acceptance snapshot. If no product snapshot exists yet, such a confirmation cannot be snapshot-bound.
 3. Parse `.project-harness/config.yaml` with `scripts/config_guard.py`. Bind the validated schema version, namespace, base, policy source, and resolved product/project-memory methods as the live integration-policy baseline. For schema-v2, require repository metadata to prove both configured methods are currently available. For schema-v1 compatibility, require the authoritative available-method set to be known and contain exactly one method, then bind it for both PR kinds.
 
-Return blocked before Implementation and before any mutation when an applicable preflight check fails. For schema-v1 with multiple methods, use `recovery_condition: merge-policy-migration-required` and hand off to exact `role: init` with the unchanged namespace, authoritative available-method set, and both unresolved product/project-memory policy choices; only the user's later explicit `init` packet may complete those fields. For schema-v2 whose configured method is unavailable, use `recovery_condition: configured-merge-method-unavailable`; never choose another enabled method or ask the user to merge manually. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction inside a mutable `delivery` remains the Context Promotion confirmation gate. Do not require a planning-only or same-turn input tool; run Implementation and repository mutations in a code-capable mode.
+Return blocked before Implementation and before any mutation when an applicable preflight check fails. For schema-v1 with multiple methods, use `recovery_condition: merge-policy-migration-required` and hand off to exact `role: init` with the unchanged namespace, authoritative available-method set, and both unresolved product/project-memory policy choices; only the user's later explicit `init` invocation may supply those semantic configuration choices. For schema-v2 whose configured method is unavailable, use `recovery_condition: configured-merge-method-unavailable`; never choose another enabled method or ask the user to merge manually. In particular, do not begin a delivery whose human-only acceptance would require a later live question: the only live user interaction inside a mutable `delivery` remains the Context Promotion confirmation gate. Do not require a planning-only or same-turn input tool; run Implementation and repository mutations in a code-capable mode.
 
 Treat the explicit `delivery` invocation as authority, for this one Issue only, to:
 

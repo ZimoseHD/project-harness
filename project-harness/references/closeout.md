@@ -7,7 +7,7 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 ## Contents
 
 - Enforce the authority boundary
-- Accept only the minimal persistent hand-off
+- Accept the public semantic input
 - Resolve and bind the acceptance snapshot
 - Build the acceptance matrix
 - Verify independently
@@ -26,7 +26,7 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 - Continue acceptance for the same bound snapshot in the same Phase Owner after a Worker failure or Reviewer FAIL. Replace the Owner only when a bound authoritative input or semantic target changes, the Owner explicitly terminates, or its context cannot be recovered.
 - Treat the Issue as the delivery contract and the PR as the implementation result and evidence carrier.
 - Independently inspect the diff and rerun applicable acceptance.
-- Treat the current user message's exact host-valid `role: closeout` packet under the root Skill's invocation-adapter contract as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
+- Treat the current user message's exact host-valid `role: closeout` invocation and required semantic inputs under the root Skill's public-invocation adapter as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
 - Write only those authorized GitHub artifacts; never derive write authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary review request, or prior run.
 - Never modify product code, tests, commits, refs, PR Body, Issue Body, or durable project memory.
 - Never make even a small implementation fix.
@@ -34,17 +34,9 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 
 Return accepted-ready-pr, return-to-implementation, return-to-definition, or blocked.
 
-## Accept only the minimal persistent hand-off
+## Accept the public semantic input
 
-Require:
-
-~~~yaml
-role: closeout
-authoritative_sources:
-  - https://github.com/owner/repo/issues/123
-  - https://github.com/owner/repo/pull/456
-next_action: Independently accept or reject the Draft PR against the Issue.
-~~~
+Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: closeout`, one Issue URL and one Draft product PR URL in the current user message. Treat those URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce Implementation's hand-off envelope.
 
 When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: closeout` and the Implementation phase's persistent evidence URLs and bound tuple.
 
