@@ -13,8 +13,8 @@ This file is the single authority for those artifacts' marker forms, required se
 - Bind all repeated Issue, product-PR, memory-PR, head, base, title, Body-digest, changed-file, authority-base, and merge identities to the same independently read source tuple. Fail closed on drift or contradiction.
 - Require the Issue and Pull Request transports to return the same verified authenticated actor record for the operation. Establish its `mutation_author_login` as the trusted workflow author; a marker or arbitrary matching comment cannot establish trust.
 - For a current-format lineage, require the Closeout PASS, Issue callback, schema-v2 eligibility registration, and every schema-v2 promotion callback's transport-returned author login to equal the trusted workflow author. Apply only the explicit legacy migration rules below when historical authorship differs.
-- A phase result or hand-off is only a search hint. A consumer must fetch and validate the original artifact under this contract before relying on it.
-- An operation-local Evidence Bundle is a non-persistent, non-authoritative optimization defined by the root Skill. It may carry exact normalized artifact content between the current coordinator, Owner, and Reviewer, but it does not authorize a transition or replace the live artifact, active-lineage, mutation, merge, or closure checks required here.
+- A phase result or hand-off is only a search hint. A consumer must fetch and validate the original artifact under this contract before relying on it. The sole no-artifact exception is a current schema-v3 Context Promotion result with `reason: direct-no-promotion-all-no-write`: it is an ephemeral classification judgment, not mutation authority, and may support only the current `delivery` coordinator's immediate closure gate. Require the result to bind the exact unchanged Issue, merged source-PR/merge, eligibility, authority, and complete absence reads; immediately before closure require the same live Context Promotion Owner to revalidate that tuple and classification, or a freshly dispatched Owner to perform the complete classification when the prior context is unrecoverable, while the coordinator independently re-reads the protected tuple and absence state. Never persist, replay across re-entry, or reuse this exception after source/authority drift; recovery must classify again.
+- Treat an operation-local Evidence Bundle only as a frozen compatibility carrier for a pre-Lean schema-v2 delegation that already contains one. Validate and consume that legacy carrier under the root Skill's historical bundle-integrity rules, but never require, construct, or extend an Evidence Bundle for a new schema-v3 delegation. A legacy Bundle remains non-persistent and non-authoritative: it cannot authorize a transition or replace live artifact, active-lineage, mutation, merge, or closure checks.
 - Treat each Context Promotion artifact named **Reviewer PASS** as persistent evidence of an independent Reviewer's returned, tuple-bound read-only verdict. The Reviewer never writes that GitHub comment: the Context Promotion Phase Owner is its producer, composes it from the returned verdict and exact independently read tuple, persists it through the loaded Pull Request transport, and verifies the read-back. This ownership clarification does not change any artifact field, author rule, digest, predecessor, or schema below.
 
 ## Persist Closeout evidence
@@ -66,6 +66,20 @@ acceptance_comment_sha256: SHA256
 ~~~
 
 The callback tuple must equal the PASS tuple, and `acceptance_comment_*` must bind that exact whole PASS comment.
+
+### Lean code-only admission
+
+Admit a newly completed product delivery directly as Lean code-only only when all of the following are independently established for one exact accepted product tuple:
+
+- the Product PR Body contains the five required `持久项目记忆实际影响` rows—`decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, and `milestone_evidence`—exactly once and in contract order, and every row's `实际影响` value is exactly the literal `无`;
+- the current Closeout `verdict: PASS` record contains exactly one durable-memory admission entry with `item: durable-memory-impact`, `result: PASS`, and `evidence: all-five-none`; Closeout's independently read accepted Body digest and complete diff support that exact result;
+- that PASS, the matching Issue callback, and the active current eligibility registration bind the same Issue digest, PR title/Body digest, head ref/SHA, and `develop` base ref/SHA;
+- complete source-PR comment and related-PR reads prove that no current or legacy Context Promotion callback, proposal artifact, Reviewer PASS, confirmation, Ready/terminal callback, supersession record, or source-linked project-memory PR exists; and
+- the accepted diff, tests, Issue contract, and cited authority contain no durable-memory candidate that contradicts the five exact `无` claims.
+
+This admission is a derived read-time gate, not a fourth marker or a new persistent artifact schema. After the exact product merge is verified, it supports a direct `no-promotion` phase/coordinator result and Issue closure without writing a proposal artifact, Reviewer PASS, `awaiting-confirmation`, `confirmed`, `no-promotion` callback, project-memory branch, or project-memory PR.
+
+Fail closed when any row, acceptance item, tuple binding, complete absence read, or factual check is missing or ambiguous. If one or more categories contains a real durable-memory candidate, enter the normal strict Context Promotion proposal path. If any promotion artifact or source-linked memory PR already exists, the Lean admission is inapplicable even when the current PR table says `无`; reconstruct and resume that existing current or legacy lineage under the rules below.
 
 ### Current eligibility registration
 
@@ -672,6 +686,7 @@ For a normal terminal, the predecessor must bind the active `memory-pr-ready`. F
 
 ### Promotion lineage
 
+- Before resolving a new promotion lineage, test Lean code-only admission. Exact admission plus complete absence of every promotion artifact and source-linked memory PR is a valid no-lineage terminal route; it does not create an active tip. A first new candidate round that the Context Promotion Owner completely classifies as all `no_write` may likewise return a no-artifact, no-lineage result under that phase's rules; because it is ephemeral, any later recovery must reclassify it. Once any promotion artifact or memory PR exists, both exceptions are permanently unavailable to that source tuple and the persisted lineage rules below take precedence.
 - Require `schema_version: 2` on every new workflow callback.
 - Permit the normal chains `awaiting-confirmation` → `confirmed` → `no-promotion` and `awaiting-confirmation` → `confirmed` → `memory-pr-ready` → `memory-pr-merged`.
 - Permit a higher-revision `awaiting-confirmation` to supersede an unconfirmed proposal through its predecessor pair.
@@ -708,6 +723,7 @@ For a legacy migration, establish the first schema-v2 `awaiting-confirmation` co
 
 ## Preserve compatibility
 
+- Keep every fenced schema in this contract frozen. Lean code-only admission adds no field to any persisted verdict, callback, proposal, review, or terminal schema; it recognizes one exact existing Closeout acceptance-list entry and complete absence evidence at read time.
 - Keep all callback field names, enum values, marker forms, schema versions, and digest algorithms above stable. Treat the versioned Reviewer PASS and markerless validation-impact artifact as the explicit additive migration defined here, not as permission to extend another fenced schema silently.
 - Continue dual-reading an exact unversioned Reviewer PASS as `legacy-full`, equivalent to `r3-normative`; never rewrite, upgrade, or downgrade it, and never require its historical producer to have written tier, review-input, item-coverage, or validation-impact fields. New PASS writes use only `review_schema_version: 1`.
 - Treat validation-impact evidence as optional only for old/full-validation paths. Reuse or incremental validation requires the exact current artifact; its absence never weakens validation or required CI.

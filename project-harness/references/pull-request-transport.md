@@ -64,7 +64,7 @@ For a requested diff, return the complete transport-produced unified diff normal
 
 ## Protect every mutation
 
-Treat this section as the root Skill's `L2 atomic-mutation-guard`. An operation-local Evidence Bundle may avoid re-downloading unchanged semantic content, but it cannot replace any target baseline, immediate pre-write comparison, mutation recovery, or independent read-back below.
+Treat this section as the root Skill's `L2 atomic-mutation-guard`. A caller summary, hand-off, or cached semantic read cannot replace any target baseline, immediate pre-write comparison, mutation recovery, or independent read-back below.
 
 1. Fetch the exact PR and the minimum comment/check state needed to prove identity and establish a baseline.
 2. Normalize and digest every baseline Markdown field involved in the operation.
@@ -85,7 +85,7 @@ For create-draft, search immediately before creation and never create when the c
 
 Treat merge as an irreversible integration mutation, not as a convenience state change.
 
-Treat this section as the root Skill's `L3 irreversible-gate`. An Evidence Bundle does not replace or substitute for this merge guard.
+Treat this section as the root Skill's `L3 irreversible-gate`. No delegated carrier or cached read replaces or substitutes for this merge guard.
 
 1. Require `role: delivery` authority for the exact Issue lineage and a caller-selected `merge_method` resolved from a valid Harness integration policy: schema-v2 uses the configured product or project-memory method; schema-v1 compatibility uses the sole authoritatively available method. Never choose or substitute a method in the transport.
 2. Require the exact expected PR title, normalized Body digest, Ready/open state, head ref/SHA, base ref `develop`, base SHA, successful required checks with `required_checks_known: true`, and `mergeable: true` or the selected transport's authoritative equivalent. Treat unknown mergeability as blocked, not as permission to attempt the irreversible mutation.
