@@ -36,9 +36,9 @@ Harness 的目标是让 Agent 稳定交付代码，而不是让审计协议成�
 
 `implementation` → 精简 `closeout` → 产品 PR 合并 → `code-only` 直接关闭，或按需 `context-promotion` → 按需项目记忆 PR 合并 → Issue 关闭
 
-- Definition 对清楚、低风险的需求只固化目标、边界和验收，不强制逐题 grilling 或独立合同 Reviewer。只有真正阻塞的产品决策才询问用户；高风险、含糊或仓库规则要求时才增加独立审查。
-- Implementation 专注代码、测试和 Draft Product PR。验证应与改动和风险相称。
-- Closeout 保持独立 Owner，但优先复用绑定当前 head 的 Implementation 验证和 required CI；只重跑缺失、过期、矛盾或风险要求的检查。
+- Definition 对清楚、低风险的需求只固化目标、边界和验收，不强制逐题 grilling 或独立合同 Reviewer。普通任务直接记录受保护改动为 `无`；只有真正阻塞合同的产品决策才询问，其中确需架构、接口、DTO 等受保护改动时，逐个用白话确认具体例外。
+- Implementation 专注代码、测试和 Draft Product PR。首次编辑前及最终 diff 完成后对照 Issue 的紧凑改动范围；未明确允许的重要改动一律返回 Definition，不得静默扩权。
+- Closeout 保持独立 Owner，在原有完整 diff 审查内复核范围，并优先复用绑定当前 head 的 Implementation 验证和 required CI；不为范围检查增加独立 artifact、逐文件映射、验收项或阶段。
 - Product PR 五类持久项目记忆影响均精确为 `无`，且 Closeout 持久 PASS 明确验证 `all-five-none` 时，Delivery 在产品合并后跳过 Context Promotion，直接执行 Issue 关闭门。
 - 只有存在实际持久知识候选时才进入 Context Promotion。首次新 promotion 轮次若最终全为 `no_write`，直接返回 no-promotion，不创建提案、Reviewer PASS、确认回调或跨回合用户门；实际写入仍必须独立 review，并在合并前取得 source-bound 用户确认。
 - 已持久化的 `awaiting-confirmation`、`confirmed`、Ready、terminal 或 legacy promotion lineage 必须继续按旧链恢复，不能用 Lean 快路径绕过。
@@ -91,9 +91,10 @@ Harness 的目标是让 Agent 稳定交付代码，而不是让审计协议成�
 8. 新项目记忆写入必须保留独立 Reviewer、source-bound 用户确认、current-head required checks、mergeability、配置化 merge method、合并回读和 terminal reconciliation。
 9. 三个 marker 名称保持不变；现有持久 schema 不覆盖、不重写，legacy lineage 只按已验证 dual-read 迁移。
 10. `delivery-stage-observation` 是冻结的历史审计数据。新运行不得写、补录、修复、要求 coverage 或用其授权 phase、merge、closure、completion；Issue 关闭后不写 post-close observation。
-11. 确定性脚本保持纯粹、标准库优先、可测试，不能隐藏产品或授权判断，也不能产生网络副作用。
+11. Issue 的紧凑 `改动范围` 是产品改动的唯一授权源。受保护表面只在 `project-harness/references/issue-contract.md` 集中定义并默认禁止，只能按 Issue 中精确例外修改；PR、计划和 ADR 都不能扩权。
+12. 确定性脚本保持纯粹、标准库优先、可测试，不能隐藏产品或授权判断，也不能产生网络副作用。
 
-以下仍是兼容性表面：精确角色名与公共输入、schema-v3 delegation 字段及 v1/v2 dual-read、配置 schema、marker、Issue/PR 标题顺序、transport envelope、Markdown digest、Closeout/Promotion 已持久 schema、阶段所有权和停止位置。历史 Delivery-log schema/算法保持可读但不再是新 producer 或完成门。
+以下仍是兼容性表面：精确角色名与公共输入、schema-v3 delegation 字段及 v1/v2 dual-read、配置 schema、marker、Issue/PR 标题顺序与 Issue 改动范围语义、transport envelope、Markdown digest、Closeout/Promotion 已持久 schema、阶段所有权和停止位置。历史 Delivery-log schema/算法保持可读但不再是新 producer 或完成门。
 
 不得静默改变兼容性表面。确需变更时必须先说明影响和迁移策略，同步生产者、消费者、示例及测试；持久 marker/schema 变化还必须单独批准并验证 dual-read。
 
@@ -132,6 +133,8 @@ git diff --check
 - 已有 promotion lineage 不会被快路径绕过；
 - 新运行不写 Delivery observation、不要求 coverage、不因旧日志缺失阻止关闭；
 - product/memory merge 都使用当前配置方法、当前 head checks、mergeability 和回读；
+- 普通任务的 Issue 只需紧凑改动范围和 `受保护改动：无`，没有分类矩阵或额外问题；受保护例外逐个以白话确认，Implementation 与 Closeout 均拒绝越界；
+- 旧开放未合并任务缺改动范围时回 Definition 一次性补齐，旧已合并 lineage 只允许无产品 mutation 的恢复/关闭；
 - Issue 仅在 code-only 或 promotion 终态的最终回读后关闭；
 - 示例和 `agents/openai.yaml` 不承诺不存在的隐式行为；
 - 没有平台元数据、临时文件或绝对本地路径进入 Skill。

@@ -9,6 +9,7 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 - Enforce the phase boundary
 - Accept the public semantic input
 - Bind the Issue contract
+- Enforce the authorized change scope
 - Verify the pre-implementation durable-decision gate
 - Resolve one active branch and PR
 - Plan and delegate autonomously
@@ -54,6 +55,19 @@ Reject chat text that changes the goal, boundaries, external behavior, difficult
 8. Rebind and record a purely editorial or non-binding-plan change only when it cannot affect delivery.
 
 Do not update the Issue from this Skill.
+
+## Enforce the authorized change scope
+
+Before the first product-code or test mutation, read the exact compact `### 改动范围` subsection inside the Issue's binding `非目标与边界` section and establish whether the related product lineage is new, open/unmerged, or already merged. For a current-format Issue, require one non-empty `普通业务改动` field and one non-empty `受保护改动` field in that subsection.
+
+- For every new or open/unmerged lineage, require the compact scope to be present, unambiguous, and applicable to the requested change. A historical open Issue or Draft/Ready PR without it cannot continue under Implementation; return return-to-definition without making another product mutation.
+- Treat the Issue description together with `普通业务改动` as the maximum ordinary change scope. It may authorize the localized business code, tests, and supporting edits needed to deliver that behavior, but it does not authorize a protected surface implicitly.
+- Apply the protected surfaces defined by the shared Issue contract. Require `受保护改动` to name every applicable protected surface and state both the exact allowed change and its compatibility or migration boundary. The exact declaration `受保护改动：无` forbids every protected-surface change.
+- Never derive a protected exception or wider ordinary scope from `实施计划`, a PR Body, an ADR or other durable source, repository conventions, chat, or an implementation convenience. Those sources may explain how to implement authorized work but cannot expand this Issue's mutation authority.
+- Return return-to-definition immediately when the compact scope is missing, vague, internally inconsistent, contradicted by repository facts, or narrower than a mutation required to complete the contract. Omit an unnecessary planned edit that falls outside scope and continue. When exploration or implementation newly reveals that completion genuinely requires a wider ordinary scope or an unlisted protected change, return to Definition before making it.
+- For an exact already-merged lineage reached only for recovery, keep the recovery read-only. Validate historical evidence under its compatibility path without requiring an Issue rewrite and without backfilling this compact scope.
+
+This guard constrains repository mutation only. Keep the existing Issue, PR, validation, hand-off, legacy, and transport schemas unchanged.
 
 ## Verify the pre-implementation durable-decision gate
 
@@ -124,6 +138,7 @@ Do not place task-local state in active rules, ADRs, wiki pages, or stable proje
 Before success, require:
 
 - every binding contract item implemented;
+- the complete final product diff independently compared with the Issue's exact `### 改动范围`, with every ordinary business change inside `普通业务改动` and every protected-surface change covered by one explicit exception including its compatibility or migration boundary; treat `受保护改动：无` as a verified absence requirement, remove any unnecessary out-of-scope edit and rerun the applicable checks in the same Owner, and return return-to-definition only when completion requires a broader contract or the required authority remains ambiguous;
 - all risk-proportionate selected validation passing, with every reported command or check bound to the final head SHA;
 - no known unfinished acceptance item;
 - all intended changes committed and pushed;

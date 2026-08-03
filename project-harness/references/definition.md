@@ -52,9 +52,9 @@ Apply the root Skill's public-invocation adapter. Require an exact `role: defini
 
 First classify whether the requirement is clear and low-risk from the current request and discoverable repository facts. Treat it as clear and low-risk only when the observable goal, boundaries, compatibility effect, and executable acceptance are unambiguous, and no unresolved choice affects data migration, security, an external contract, a difficult-to-reverse architecture decision, or a broad operational blast radius.
 
-For a clear and low-risk requirement, ask no clarification question. Do not run `/grilling` merely to produce a decision transcript, confirm reversible implementation details, or restate facts that are already authoritative.
+For a clear and low-risk requirement, ask no clarification question. Describe the allowed ordinary business change and write exactly `受保护改动：无` in the Issue. Do not run `/grilling` merely to produce a decision transcript, confirm reversible implementation details, fill a protected-surface checklist, or restate facts that are already authoritative.
 
-When one or more unresolved decisions can change the delivery contract, run the installed `/grilling` behavior only for those decisions. Ask one decision question at a time, wait for the answer, and include a recommended answer with its reason. Ask only about decisions that can change:
+When one or more unresolved decisions can change the delivery contract, investigate the current code and authoritative sources first. Run the installed `/grilling` behavior only for those blocking decisions, ask one decision at a time, wait for the answer, and include a recommended answer with its reason. Express each question in plain language: state the current behavior, the proposed choice, who or what is affected, any compatibility or migration consequence, and the recommended choice. Define any unavoidable specialist term in one short sentence; do not bundle decisions or present a wall of architecture jargon. Ask only about decisions that can change:
 
 - user-observable behavior or compatibility;
 - system boundaries and non-goals;
@@ -62,7 +62,11 @@ When one or more unresolved decisions can change the delivery contract, run the 
 - difficult-to-reverse architecture choices;
 - acceptance and validation outcomes.
 
+When repository facts show that the task actually needs a protected change defined by the shared Issue contract, always treat its exact extent and compatibility or migration boundary as one of those delivery-contract decisions.
+
 Stop as soon as every remaining question can be delegated to the Implementation Phase Owner without changing any item above. Do not continue into implementation design or action. Treat a discoverable fact as an investigation task rather than a user question.
+
+Write every confirmed protected-change answer as one exact exception under the Issue's `受保护改动` field. Do not publish while a required exception remains unresolved, ambiguous, or broader than the user's decision. Protected changes absent from those explicit exceptions remain forbidden even when they appear useful to the proposed implementation.
 
 Handle uncertainty conservatively:
 
@@ -91,19 +95,20 @@ Include:
 
 - a concise original requirement and problem background, without copying the conversation;
 - a verifiable goal and explicit non-goals;
+- the compact `改动范围`: allowed ordinary business areas plus exactly `受保护改动：无` or only the specifically confirmed protected exceptions;
 - only the authoritative repository facts actually used;
 - the durable-memory impact classification, four-condition evidence or explicit non-applicable reason, and non-binding post-merge candidates classified as `decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, or `milestone_evidence`;
 - decisions with choice, reason, and status;
 - an implementation plan describing affected system areas, ordered stages, dependencies, stage outcomes, and required tests;
 - executable acceptance checks that cover the goal and boundaries;
 
-Treat the goal, non-goals, boundaries, confirmed decisions, constraints, and acceptance checks as the delivery contract. Treat the implementation plan as a non-binding starting prediction that the Implementation Phase Owner may revise without returning to Definition unless the revision changes the delivery contract.
+Treat the goal, non-goals, boundaries, `改动范围`, confirmed decisions, constraints, and acceptance checks as the delivery contract. Treat the implementation plan as a non-binding starting prediction that the Implementation Phase Owner may revise without returning to Definition unless the revision changes the delivery contract. Never use the plan to imply permission for an unlisted protected change.
 
 Avoid prescribing class names, function structure, or ordinary code choices unless they are confirmed architecture constraints.
 
 Do not promise future project-memory write-back. Record post-merge candidates only as non-binding review clues. Leave verified all-`无` fast-path eligibility to Closeout and any actual durable-write classification to Context Promotion after the product PR merges.
 
-When updating an explicitly targeted Issue, treat its current Body as input and build one complete replacement Body. Preserve still-valid content, remove placeholders and explicitly superseded content, and leave comments, labels, assignees, milestones, and other metadata unchanged.
+When updating an explicitly targeted Issue, treat its current Body as input and build one complete replacement Body. Preserve still-valid content, remove placeholders and explicitly superseded content, and leave comments, labels, assignees, milestones, and other metadata unchanged. When an open legacy task has no merged product Pull Request and is returned for a missing `改动范围`, add the compact subsection and rebind the complete Body before Delivery resumes. Do not rewrite an Issue solely to migrate this format after its product Pull Request has merged.
 
 When creating a new Issue, set only the reviewed title and Body unless the original request or repository rules explicitly provide metadata. Do not infer labels, assignees, or milestones.
 
@@ -111,7 +116,7 @@ When creating a new Issue, set only the reviewed title and Body unless the origi
 
 Follow the loaded Issue transport protocol to normalize the complete Body and calculate its SHA-256 digest. Bind the exact title and normalized Body to that digest. Treat any title or Body change as a new draft requiring a new digest and a new applicable draft gate.
 
-For a clear and low-risk contract, have the Definition Phase Owner perform a deterministic completeness check against the original requirement, authoritative sources, and the exact Issue contract. Require complete headings, no placeholders, traceable facts, executable acceptance, and no contradiction or unresolved contract decision. This is the normal lean path and does not require an independent Reviewer.
+For a clear and low-risk contract, have the Definition Phase Owner perform a deterministic completeness check against the original requirement, authoritative sources, and the exact Issue contract. Require complete headings, a non-placeholder compact `改动范围`, no placeholders, traceable facts, executable acceptance, and no contradiction, unresolved contract decision, or implied protected permission. This is the normal lean path and does not require an independent Reviewer.
 
 Require an independent Reviewer when the contract is high-risk or material clarity remains difficult to establish after targeted clarification. Triggers include security or privacy behavior, destructive data or migration semantics, externally consumed compatibility or protocol changes, difficult-to-reverse architecture, a broad operational blast radius, human-only acceptance, or reasonable doubt that the draft faithfully closes a material ambiguity. Do not create a Reviewer merely because the task has multiple files, uses a new technology, or has a long implementation plan.
 
@@ -145,6 +150,7 @@ Require the Reviewer to check:
 6. executable acceptance checks covering the goal and boundaries;
 7. correct pre-implementation Context Authoring classification and separation of feature design from a durable architecture/technology decision;
 8. absence of placeholders, contradictions, duplicates, target-Issue mismatch, and promised post-merge memory write-back.
+9. a compact `改动范围` whose protected exceptions exactly reflect confirmed decisions and do not hide protected permission in ordinary scope or the implementation plan.
 
 Route a failed review according to the blocker:
 
@@ -176,4 +182,4 @@ After successful read-back verification, the Definition Phase Owner outputs one 
 
 Do not copy the Issue Body into the hand-off. Do not start implementation.
 
-If Implementation later discovers a fact that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, or acceptance contract, stop the delivery chain and hand the same Issue back to an explicit `role: definition`. Re-run the applicable gates, update and re-review the original Issue, and avoid creating a parallel task.
+If Implementation later discovers a fact that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, acceptance contract, or requires any protected change not explicitly allowed by `改动范围`, stop the delivery chain and hand the same Issue back to an explicit `role: definition`. Re-run the applicable gates, update and re-review the original Issue, and avoid creating a parallel task.

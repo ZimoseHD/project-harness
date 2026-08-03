@@ -9,6 +9,8 @@ Treat this file as the sole authoritative schema for the product Pull Request Bo
 - Use a plain `Refs` link to associate the source Issue. Do not use a closing keyword; the authorized `delivery` coordinator owns explicit closure after the selected code-only or promotion path, while standalone Context Promotion retains only its documented compatibility closure authority.
 - Bind the exact Issue Body digest, product head SHA, and integration base ref/SHA.
 - Record observable results, actual changes, plan deviations, executable verification evidence, and known limitations without copying the Issue contract.
+- Treat the Issue `改动范围` as the only task-level change authority. The Product PR records what happened and cannot grant, broaden, or repair permission through `主要改动`, a plan deviation, review text, or later evidence.
+- When the final diff contains an explicitly authorized protected change, add one concise bullet under `主要改动` that names the actual change and points to the exact Issue `受保护改动` exception that authorizes it. When no protected change occurred, add no mapping table, empty field, or extra ceremony.
 - Bind every reported validation result to the final product head SHA. Identify an immutable CI run when applicable; do not present a command run against an earlier code snapshot as current-head evidence.
 - Classify the actual durable-memory impact from evidence. Use the exact literal `无` in the **实际影响** cell for a category with no impact; ordinary code-discoverable implementation details do not require a durable write and therefore use `无` here.
 - Treat the five-row table as a candidate for the code-only fast path, not as self-approval. Closeout must independently compare it with the exact diff and authoritative sources.

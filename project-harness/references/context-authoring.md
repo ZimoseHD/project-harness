@@ -28,6 +28,7 @@ Carry the optional pre-implementation durable-decision gate. Persist only one se
 - Produce a verified existing-decision result, a verified Ready proposed-decision PR, return-to-definition, or blocked.
 - Never write active rules, wiki explanations, `.project-memory` state, product code, tests, or task-local tracking.
 - Never replace verified current behavior with unverified future behavior without preserving their distinct applicability.
+- Treat the source Issue `改动范围` as the only task-level change authority. An ADR records a settled cross-task decision but cannot authorize, broaden, or retroactively justify a protected product change.
 - Never modify the Issue Body, commit to `develop` or `main` directly, merge a PR, or start product implementation.
 
 ## Accept the public semantic input
@@ -47,6 +48,7 @@ Reject chat summaries as decision authority.
    - another task must consume it before the source product PR merges;
    - omission creates concrete divergence, rework, correctness, safety, or compatibility risk.
 5. Confirm the write classification is `decision` and the authoritative destination is `docs/decisions/`. Return return-to-definition when the gate is incomplete, contradictory, unresolved, unsupported, or classified into another layer. Do not repair the contract in this role.
+6. When the decision entails a protected surface defined by the shared Issue contract, require the Issue `受保护改动` field to contain the exact corresponding exception and compatibility or migration boundary. Return to Definition when it is missing, ambiguous, or narrower than the decision; do not use the proposed or existing ADR to expand it.
 
 Treat `proposed` as selected but not implementation-validated. Do not publish unresolved alternatives as a proposed decision.
 
