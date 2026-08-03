@@ -154,6 +154,9 @@ Keep each Phase Owner as the sole phase writer and hand-off producer. Permit onl
 ## Prefer code output and proportional verification
 
 - Treat the Issue as the delivery contract and the product PR as the implementation result and verification carrier.
+- Treat the Issue's `### 改动范围` block as the sole authority for what product code may change. Record the ordinary business area plus either the exact literal `受保护改动：无` or a short list of explicitly allowed exceptions for the protected surfaces defined only in `references/issue-contract.md`. Missing, broad, or ambiguous wording grants no permission.
+- For a clear task with no protected change, write `受保护改动：无` without asking another question. When an exception is genuinely required, ask one decision at a time in plain language and state the current behavior, proposed change, affected callers or data, compatibility or migration consequence, and recommended answer. Do not turn the protected-surface list into a user-filled matrix.
+- Before the first product edit and again against the complete final diff, require Implementation to stay inside that block. Return to Definition before mutation when an exception is absent or insufficient. Keep Closeout's independent full-diff comparison inside its existing review; do not create a separate scope artifact, per-file mapping, acceptance item, or extra phase.
 - Ask only for decisions that would materially change goals, boundaries, external behavior, safety, compatibility, or acceptance. Discover repository facts instead of turning routine implementation choices into user gates.
 - Run implementation validation proportional to the changed code, repository rules, and Issue acceptance checks.
 - Keep Closeout independent, but reuse exact current-head Implementation evidence and successful required CI when their scope remains applicable. Re-execute only missing, stale, contradicted, or risk-required checks.
@@ -193,5 +196,7 @@ Keep these marker names unchanged:
 | `${marker_namespace}:context-promotion` | `context-promotion` | `context-promotion`; `delivery`; `closeout` conflict checks |
 
 Keep existing Issue and Product PR headings, Markdown normalization, transport envelopes, Closeout evidence schemas, promotion callback schemas, marker payloads, and config schema stable. Read historical lineages under `references/delivery-evidence-contract.md`; never overwrite or reinterpret them.
+
+Require the compact `### 改动范围` block before any new or still-unmerged product mutation. Return an older open lineage that lacks it to Definition for a one-time Issue update and fresh downstream binding. Permit an already-merged legacy lineage to finish read-only recovery or closure without rewriting history, but never use that exception for another product-code mutation.
 
 Treat `record_kind: delivery-stage-observation` comments and `references/delivery-log-contract.md` as frozen legacy audit data. New operations must not write, backfill, repair, require, or use their coverage for phase dispatch, merge, closure, or completion. Historical comments never become workflow authority or project memory.

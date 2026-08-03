@@ -67,6 +67,7 @@ Use this priority order:
 | Current exact state | Next action |
 | --- | --- |
 | Issue already closed and the selected code-only or promotion completion evidence still validates | Return completed through read-only `no-op` verification; never backfill logs |
+| No product PR exists, or the product PR is still unmerged, and the Issue lacks a non-placeholder `### 改动范围` with both `普通业务改动` and `受保护改动` | Return `return-to-definition` for the one-time format migration before Implementation, Closeout, or merge; do not edit the Issue in Delivery |
 | Any valid `awaiting-confirmation`, `confirmed`, `memory-pr-ready`, terminal, supersession, or legacy promotion state exists | Resume that exact promotion lineage; never select the new fast path |
 | No product PR or one incomplete Draft product PR exists | Dispatch Implementation to create, resume, or repair it |
 | This coordinator has accepted the unchanged current-run Implementation hand-off and no current Closeout verdict exists | Dispatch Closeout |
@@ -86,6 +87,8 @@ Use this priority order:
 | Promotion path is terminal | Enter closure |
 
 Do not select workflow state by comment recency. Validate exact tuple/digest and predecessor bindings for every existing lineage. Historical stage observations never choose or block the next action.
+
+Treat the format-presence row above as Delivery's sole scope-related routing check. Verify only that the compact fields exist and are non-placeholder; never classify a change, map files, or add acceptance evidence here. Do not apply this migration row to an already-merged `no-op` recovery, and never use that legacy exception to authorize another product mutation.
 
 ## Dispatch compact Phase Owners
 

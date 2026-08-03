@@ -1,6 +1,6 @@
 interface:
   display_name: "Project Harness"
-  short_description: "Run lean code-first delivery with guarded PR integration"
-  default_prompt: "Use $project-harness explicitly with role: delivery in a code-capable mode to implement and proportionally verify one finalized Issue, automatically merge the accepted product PR, skip Context Promotion when all five durable-memory impact values are the exact literal 无 and Closeout verifies all-five-none, and close the Issue after guarded read-back. Enter the source-bound confirmation flow only for an actual project-memory write or an existing promotion lineage. Use role: init for schema-v2 integration policy and an exact phase role only for compatibility or recovery."
+  short_description: "Run lean Issue-scoped code delivery with guarded integration"
+  default_prompt: "Use $project-harness explicitly with role: delivery in a code-capable mode to implement and proportionally verify one finalized Issue. Keep every protected change within an explicit Issue exception; for ordinary tasks, keep the compact scope to the ordinary area plus 受保护改动：无. Automatically merge the accepted product PR, skip Context Promotion when all five durable-memory impact values are the exact literal 无 and Closeout verifies all-five-none, and close the Issue after guarded read-back. Enter the source-bound confirmation flow only for an actual project-memory write or an existing promotion lineage. Use role: init for schema-v2 integration policy and an exact phase role only for compatibility or recovery."
 policy:
   allow_implicit_invocation: false

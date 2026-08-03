@@ -111,6 +111,31 @@ class LeanOrchestrationContractTests(unittest.TestCase):
         self.assertIn("Require an independent Reviewer when the contract is high-risk", self.definition)
         self.assertIn("deterministic completeness check", self.definition)
 
+    def test_definition_publishes_one_compact_exception_only_change_scope(self) -> None:
+        self.assertIn("### 改动范围", self.issue_contract)
+        self.assertIn("- 普通业务改动：", self.issue_contract)
+        self.assertIn("- 受保护改动：", self.issue_contract)
+        self.assertIn("受保护改动：无", self.issue_contract)
+        self.assertIn("This list is authoritative for every phase", self.issue_contract)
+        for protected_surface in (
+            "architecture or module boundaries",
+            "public APIs",
+            "DTOs or serialization",
+            "databases or migrations",
+            "message protocols",
+            "configuration formats",
+            "security or permissions",
+            "core dependencies or frameworks",
+        ):
+            self.assertIn(protected_surface, self.issue_contract)
+        self.assertNotRegex(self.issue_contract, r"\|\s*受保护表面\s*\|")
+        self.assertIn("ask one decision at a time", self.definition)
+        self.assertIn("unresolved decisions can change the delivery contract", self.definition)
+        self.assertIn("Express each question in plain language", self.definition)
+        self.assertIn("the recommended choice", self.definition)
+        self.assertIn("do not bundle decisions", self.definition)
+        self.assertIn("protected change within an explicit Issue exception", self.openai)
+
     def test_implementation_and_closeout_focus_on_current_head_code_evidence(self) -> None:
         self.assertIn("smallest verification set", self.implementation)
         self.assertIn("final head SHA", self.implementation)
@@ -118,6 +143,27 @@ class LeanOrchestrationContractTests(unittest.TestCase):
         self.assertIn("missing, stale, ambiguous", self.closeout)
         self.assertIn("required_checks_known: true", self.closeout)
         self.assertIn("Inspect the complete diff", self.closeout)
+
+    def test_change_scope_guard_reuses_existing_phases_without_a_third_gate(self) -> None:
+        self.assertIn("Before the first product-code or test mutation", self.implementation)
+        self.assertIn("the complete final product diff", self.implementation)
+        self.assertIn("return return-to-definition", self.implementation)
+        self.assertIn("remove any unnecessary out-of-scope edit", self.implementation)
+        self.assertIn("only when completion requires a broader contract", self.implementation)
+        self.assertIn("compare it with the complete final product diff", self.closeout)
+        self.assertIn("return to Implementation", self.closeout)
+        self.assertIn("return to Definition", self.closeout)
+        self.assertIn("Do not add a scope-specific acceptance item", self.closeout)
+        self.assertIn("add no mapping table, empty field, or extra ceremony", self.product_contract)
+        self.assertIn("cannot authorize, broaden, or retroactively justify", self.context_authoring)
+        self.assertIn("open, unmerged legacy task", self.issue_contract)
+        self.assertIn("exact already-merged lineage", self.implementation)
+        self.assertIn("exact already-merged recovery lineage", self.closeout)
+        self.assertIn("Delivery's sole scope-related routing check", self.delivery)
+        self.assertIn("never classify a change, map files, or add acceptance evidence", self.delivery)
+        self.assertIn("already-merged `no-op` recovery", self.delivery)
+        self.assertNotIn("### 改动范围", self.evidence)
+        self.assertNotIn("change-scope-conformance", self.skill + self.evidence)
 
     def test_code_only_admission_is_exact_and_persistent(self) -> None:
         for source in (self.skill, self.delivery, self.evidence, self.closeout):

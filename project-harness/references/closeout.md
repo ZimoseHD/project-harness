@@ -9,6 +9,7 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 - Enforce the authority boundary
 - Accept the public semantic input
 - Resolve and bind the acceptance snapshot
+- Enforce the final change scope
 - Build the acceptance matrix
 - Judge independently and verify proportionally
 - Re-read before the verdict
@@ -75,6 +76,19 @@ base_sha: COMMIT
 
 Stop blocked on target ambiguity, missing read-back, an unverifiable relationship, or unavailable evidence that prevents a safe verdict.
 
+## Enforce the final change scope
+
+Independently read the exact compact `### 改动范围` subsection inside the Issue's binding `非目标与边界` section and compare it with the complete final product diff, not a file summary or the Implementation hand-off. For a current-format Issue, require one non-empty `普通业务改动` field and one non-empty `受保护改动` field in that subsection.
+
+- For a new or open/unmerged lineage, require the compact scope to be present, unambiguous, and applicable. A historical open Issue or unmerged PR without it returns to Definition; Closeout must not retrofit the Issue or accept the missing contract from another source.
+- Judge ordinary business changes against the Issue description and its `普通业务改动` field. Localized implementation and test changes may satisfy that ordinary scope, but neither source implicitly authorizes a protected surface.
+- Apply the protected surfaces defined by the shared Issue contract. Require `受保护改动` to name every changed protected surface and state both the exact allowed change and its compatibility or migration boundary. The exact declaration `受保护改动：无` requires the final diff to contain no protected-surface change.
+- Do not accept `实施计划`, the PR Body, an ADR or other durable source, repository convention, chat, or Implementation's explanation as additional mutation authority. Use them only as evidence about work already authorized by the Issue.
+- When an out-of-scope edit is unnecessary and can be removed while still satisfying the existing contract, record the failure through the existing Acceptance verdict and return to Implementation with the exact offending area to remove. When completing the task genuinely requires broader ordinary scope or an unlisted protected change, or the authorization remains ambiguous, record the existing failure and return to Definition.
+- For an exact already-merged recovery lineage, keep reconciliation read-only. Apply its existing legacy checks without requiring or writing a compact scope back into the Issue.
+
+Do not add a scope-specific acceptance item, per-surface mapping table, callback, marker, schema field, or artifact. Express any scope failure only through the existing verdict, blocker, return-stage, reason, and evidence fields.
+
 ## Build the acceptance matrix
 
 Extract each binding goal, boundary, confirmed decision, and acceptance check from the Issue. Treat the Issue implementation plan as non-binding.
@@ -121,6 +135,7 @@ Do not modify code or tests in response to a failure.
 Immediately before recording a verdict, independently fetch the Issue, PR, refs, Body, comments, and checks again.
 
 - Restart affected acceptance when head SHA or base SHA changes.
+- Re-read the complete final diff and exact `### 改动范围`; rerun the scope judgment when either changes, and never publish a verdict for a diff that has not passed that judgment.
 - Return return-to-definition for a binding Issue contract change.
 - Re-evaluate a non-binding or editorial Issue change before rebinding.
 - Recheck factual claims and evidence when the PR title or Body changes.
