@@ -10,7 +10,7 @@ Execute Harness-authorized GitHub Issue operations without owning the workflow o
 - Operate on Issues and Issue comments only. Exclude Pull Requests from search results and reject a Pull Request passed as an Issue target.
 - Prefer GitHub MCP or App operations callable in the current session. When no MCP/App GitHub operation is callable, fall back to the authenticated `gh` CLI as the single transport for the whole operation; never use direct REST calls, browser automation, or unverified transports.
 - Never install a plugin, edit MCP configuration, switch accounts, request broader permissions, or repair authentication. Return `blocked` with the missing capability and evidence only when neither an MCP/App operation nor an authenticated `gh` session is callable.
-- Do not write repository files, local caches, hand-off files, or local audit logs. GitHub holds the Issue state. Allow caller-owned source-Issue Delivery observation comments only when the current `delivery` operation supplies an exact payload authorized by the loaded Delivery stage log contract.
+- Do not write repository files, local caches, hand-off files, or local audit logs. GitHub holds the Issue state. Reject every new or replacement comment whose payload declares `record_kind: delivery-stage-observation`; the frozen Delivery log contract grants read-only diagnostic compatibility, not mutation authority.
 - Do not create probe Issues during ordinary work. Require a separate explicit user request for a smoke test, name its Issue clearly, and close it when the test completes.
 
 ## Resolve the target and transport
@@ -26,42 +26,38 @@ Execute Harness-authorized GitHub Issue operations without owning the workflow o
 
 Allow a write only when the current explicit `project-harness` role authorizes that exact mutation, or when a current explicit `delivery` invocation supplies a host-provenance-bound delegation whose mutation whitelist includes it. Require the selected operation to supply the exact target and payload.
 
-Allow the current `delivery` coordinator to add only exact Delivery stage observation comments produced under the loaded log contract. After independently verified closure, allow only the exact `issue-closed` observation to be added to that still-closed Issue; never reopen it, and independently verify the Issue remains `closed`/`completed` after comment read-back. Return `blocked` when the closed Issue is locked or comments are forbidden. Never accept such a payload from a Phase Owner, Worker, Reviewer, standalone compatibility role, serialized observation, or prior hand-off. The transport validates target/payload authority and read-back only; it does not decide whether a stage completed or whether log coverage is sufficient.
+Never allow a current `delivery` coordinator, Phase Owner, Worker, Reviewer, standalone compatibility role, serialized hand-off, or prior observation to add, replace, repair, or backfill a Delivery stage observation. Historical observations may be fetched like any other Issue comment when the caller explicitly requests diagnostic reads. They never create a post-close exception and never affect transport write authority.
 
-Allow final source Issue closure only to either the current `delivery` coordinator after its loaded operation establishes every terminal gate, or a current explicit standalone `role: context-promotion` invocation after that phase establishes its compatibility closure gate. Never accept final closure from a Phase Owner delegated by `delivery`, a Worker, a Reviewer, or any other descendant. Do not turn read access, an implicit route, a serialized delegation envelope, a prior hand-off, a stage observation, or a general task objective into write authority. Return `blocked` when the authority source is absent or broader than the requested mutation.
+Allow final source Issue closure only to either the current `delivery` coordinator after its loaded operation establishes every applicable closure gate, or a current explicit standalone `role: context-promotion` invocation after that phase establishes its compatibility closure gate. Never accept final closure from a Phase Owner delegated by `delivery`, a Worker, a Reviewer, or any other descendant. Do not turn read access, an implicit route, a serialized delegation envelope, a prior hand-off, a stage observation, or a general task objective into write authority. Return `blocked` when the authority source is absent or broader than the requested mutation.
 
 ## Execute only atomic Issue operations
 
 | Operation | Required behavior |
 | --- | --- |
 | Search | Search the exact repository and requested open/closed scope. Return raw normalized Issue candidates without semantic classification. Mark and exclude Pull Requests. |
-| Read | Fetch the exact Issue and requested comments. Return identity, state, metadata, title, Body digest, and for every requested comment its ID, URL, author login, creation time, normalized Body digest, and Body when requested, without changing GitHub. When the caller requests a complete Delivery observation inventory, ambiguous-comment recovery, or coverage, enumerate every comment page and report completeness explicitly; never treat a truncated page as the full candidate set. An ordinary live observation add/read-back may use the caller's already proven complete operation-local inventory and fetch only the Issue baseline plus the exact returned comment. |
+| Read | Fetch the exact Issue and requested comments. Return identity, state, metadata, title, Body digest, and for every requested comment its ID, URL, author login, creation time, normalized Body digest, and Body when requested, without changing GitHub. Enumerate every comment page and report completeness explicitly only when the caller requests a complete comment inventory for a concrete read or diagnostic purpose; never treat a truncated page as the full candidate set. |
 | Create | Require an exact title and the caller's complete Body, if any. Apply only explicitly supplied labels, assignees, or milestone. Never infer metadata or semantic uniqueness. |
 | Replace Issue content | Require the exact Issue identity and complete replacement title or Body. Do not perform fuzzy, section-based, or conversational edits. |
 | Change metadata | Support explicit state/state reason, labels, assignees, and milestone mutations. Require an explicit mode for collection fields such as replace, add, or remove. Preserve omitted fields. |
-| Add a comment | Require exact comment text and write authority. Do not decide that a workflow update belongs in a comment. For an `issue-closed` observation, require the pre-write baseline itself to prove `closed`/`completed`, preserve that state, and never attempt to unlock or reopen the Issue. |
+| Add a comment | Require exact comment text and write authority. Do not decide that a workflow update belongs in a comment. Reject `record_kind: delivery-stage-observation` payloads, including historical `finalization-ready` and `issue-closed` shapes. |
 | Replace a comment | Require the exact comment ID and complete replacement text. Do not edit a comment by fuzzy match. |
 
 Do not support Projects, Issue types, dependencies, or Pull Request mutations until a real task expands this contract.
 
 ## Protect every mutation
 
-Treat this section as the root Skill's `L2 atomic-mutation-guard`. An operation-local Evidence Bundle cannot replace the target baseline, immediate pre-write comparison, ambiguous-response recovery, or independent read-back.
+Treat this section as the root Skill's `L2 atomic-mutation-guard`. A caller summary or cached read cannot replace the target baseline, immediate pre-write comparison, ambiguous-response recovery, or independent read-back.
 
 1. Fetch the current Issue and the minimum fields needed to prove identity, establish the baseline, and verify preservation. For a comment update, fetch the exact comment as part of the baseline.
 2. Normalize Markdown line endings to LF with exactly one trailing newline. Use `scripts/markdown_digest.py` to calculate the SHA-256 digest for an Issue Body or comment text.
 3. Compare the desired state with the baseline. If all requested fields already match, skip the mutation and return `no-op` with the verified identity and digest.
 4. For an update, fetch the target again immediately before writing. Compare its identity, relevant fields, and Body or comment digest with the baseline. Return `blocked` on any concurrent change; require the caller to rebuild the complete replacement.
 5. Send one mutation containing only the explicitly authorized fields. Preserve every omitted field.
-6. If the mutation response is missing, times out, or is otherwise ambiguous, do not retry. Recover through search or fetch only when Issue identity, title, expected digest, and operation evidence prove that the original mutation succeeded. For an observation comment, enumerate all comment pages and match the exact normalized whole Body/digest. Otherwise return `indeterminate`.
+6. If the mutation response is missing, times out, or is otherwise ambiguous, do not retry. Recover through search or fetch only when Issue identity, title, expected digest, and operation evidence prove that the original mutation succeeded. For an authorized comment, enumerate all comment pages when needed to match the exact normalized whole Body/digest. Otherwise return `indeterminate`.
 7. After a mutation response, perform a separate fetch through the same transport. Never reuse the mutation response as read-back evidence.
 8. Verify the Issue or comment identity, every requested field, every protected baseline field, and applicable Markdown digests. Return `indeterminate` for unexpected side effects or a mismatch, even when GitHub accepted the mutation.
 
-For a new live Delivery observation, do not require the transport to enumerate unrelated comments when the current coordinator supplies a proven complete operation-local inventory and the desired Body is absent from it. Protect the Issue identity/title/Body/state baseline, add once, and read the exact returned comment by ID. This optimization grants no trust to the caller's inventory: ambiguous response recovery, recovery without that complete inventory, and every manifest/closure/completion coverage read still require complete pagination and transport-verified authorship.
-
-A normal observation write therefore uses targeted Issue baseline protection plus exact comment ID read-back without complete pagination. Ambiguous response recovery, clean recovery without a complete current inventory, and final coverage each require complete pagination across all comment pages.
-
-Treat final Issue closure and the post-close state verification as the root Skill's `L3 irreversible-gate`. A Bundle never authorizes closure or substitutes for the complete workflow and coverage evidence required by the selected Harness operation.
+Treat final Issue closure and its independent post-mutation state verification as the root Skill's `L3 irreversible-gate`. Immediately re-read the original workflow evidence required by the selected Harness operation; historical Delivery observations and their coverage are irrelevant. After closure verification, perform no log comment, unlock, or reopen mutation.
 
 ## Return the shared result envelope
 
@@ -110,7 +106,7 @@ candidates: []
 reason: null
 ```
 
-Populate `snapshot` with the fetched Issue state, state reason, lock state, and other requested fields for read operations and with the independently fetched final state for writes. Include the complete Issue Body or comment Body only when the caller requested it; always include its digest when it exists. For every requested comment, always include ID, URL, author, creation time, and digest so workflow authorship, immutable-baseline, observation coverage, and recovery checks are executable. Set `comments_complete: true` only after every requested page is fetched; expose an opaque next cursor while incomplete and never let the caller claim complete coverage. Leave mutation-only before/after fields `null` for a pure read.
+Populate `snapshot` with the fetched Issue state, state reason, lock state, and other requested fields for read operations and with the independently fetched final state for writes. Include the complete Issue Body or comment Body only when the caller requested it; always include its digest when it exists. For every requested comment, always include ID, URL, author, creation time, and digest so workflow authorship, immutable-baseline, diagnostic, and recovery checks are executable. Set `comments_complete: true` only after every requested page is fetched; expose an opaque next cursor while incomplete and never let the caller claim a complete inventory. Leave mutation-only before/after fields `null` for a pure read.
 
 Do not turn this envelope into an Issue comment. Let the caller decide how to use it. Treat only `verified` and `no-op` as successful outcomes; never collapse `blocked` or `indeterminate` into success.
 

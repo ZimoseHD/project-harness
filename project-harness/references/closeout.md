@@ -10,7 +10,7 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 - Accept the public semantic input
 - Resolve and bind the acceptance snapshot
 - Build the acceptance matrix
-- Verify independently
+- Judge independently and verify proportionally
 - Re-read before the verdict
 - Record an append-only acceptance verdict
 - Handle failed or blocked acceptance
@@ -25,7 +25,7 @@ Carry the Closeout phase as an independent acceptance authority. Complete final 
 - Keep the Closeout Phase Owner as the sole phase writer and sole producer of the acceptance verdict, Issue callback, eligibility registration, Ready-state mutation, and phase hand-off.
 - Continue acceptance for the same bound snapshot in the same Phase Owner after a Worker failure or Reviewer FAIL. Replace the Owner only when a bound authoritative input or semantic target changes, the Owner explicitly terminates, or its context cannot be recovered.
 - Treat the Issue as the delivery contract and the PR as the implementation result and evidence carrier.
-- Independently inspect the diff and rerun applicable acceptance.
+- Independently inspect the diff and judge every acceptance item. Reuse trustworthy Implementation or CI evidence bound to the current head; rerun only missing, stale, ambiguous, failed-to-reproduce, or risk-sensitive items.
 - Treat the current user message's exact host-valid `role: closeout` invocation and required semantic inputs under the root Skill's public-invocation adapter as authority only for the top-level acceptance/promotion-registration comments, lightweight Issue callback, and Draft/Ready mutations enumerated here. Under `delivery`, accept only the same mutations when the delegation envelope enumerates them and binds the current persistent sources.
 - Write only those authorized GitHub artifacts; never derive write authority from host/model loading or automatic routing by itself, a serialized envelope, ordinary hand-off, ordinary review request, or prior run.
 - Never modify product code, tests, commits, refs, PR Body, Issue Body, or durable project memory.
@@ -38,7 +38,7 @@ Return accepted-ready-pr, return-to-implementation, return-to-definition, or blo
 
 Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: closeout`, one Issue URL and one Draft product PR URL in the current user message. Treat those URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce Implementation's hand-off envelope.
 
-When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: closeout` and the Implementation phase's persistent evidence URLs and bound tuple.
+When delegated by `delivery`, also require the root Skill's compact schema-v3 envelope with `delegated_role: closeout`, the Implementation phase's persistent evidence URLs, typed evidence-comment URL/digest pairs, bound tuple, allowed mutations, and `next_action`. Do not require an Evidence Bundle, component identity map, or raw source payload. Dual-read a historical schema-v2 envelope with its Bundle and a schema-v1 envelope only through the root Skill's compatibility rules and complete fresh-read fallback; never emit or silently upgrade either legacy form.
 
 Read both sources and every supplied evidence URL completely. Do not rely on the previous Phase Owner's summary, chat, local plan, or implicit memory.
 
@@ -83,22 +83,29 @@ Map every item to:
 
 - executable verification;
 - code/diff inspection;
-- existing evidence requiring independent confirmation;
+- current-head Implementation or CI evidence eligible for reuse after source and relevance confirmation;
 - required CI;
 - human-only confirmation;
 - not applicable with an explicit reason.
 
 Do not add new delivery requirements during Closeout. Return return-to-definition when the existing contract cannot support a valid acceptance decision.
 
-Also map the PR's `持久项目记忆实际影响` claims to the diff, tests, cited ADR/rule/wiki/memory sources, and repository state. Require a factual result or explicit `none` for `decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, and `milestone_evidence`. Treat single-task records claimed as durable knowledge, unsupported promotion promises, or omitted material effects as PR evidence defects rather than making the promotion decision here.
+Also map the PR's `持久项目记忆实际影响` claims to the diff, tests, cited ADR/rule/wiki/memory sources, and repository state. Require exactly one factual row for each of `decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, and `milestone_evidence`. Treat the exact literal `无` as the only no-impact value; require its evidence cell to be non-empty and non-placeholder. Treat `none`, `no_write`, `N/A`, a blank value, a missing row, vague language, single-task records claimed as durable knowledge, unsupported promotion promises, or omitted material effects as PR evidence defects.
 
-## Verify independently
+Set the conservative promotion classification from this matrix:
+
+- Set `promotion_required: false` only when all five actual-impact values are exactly `无` and independent diff/source inspection confirms every claim.
+- Set `promotion_required: true` when any category has a concrete non-`无` impact, or when any row is missing, ambiguous, unsupported, or otherwise cannot be verified. A true value reports that the code-only fast path is unavailable; it does not convert defective evidence into acceptance.
+- Set `code_only_verified: true` only for a final PASS whose five rows satisfy the verified all-`无` rule. Set it to false for every other PASS, FAIL, BLOCKED, or incomplete result.
+
+## Judge independently and verify proportionally
 
 - Inspect the complete diff and affected tests.
 - Delegate bounded read-only verification only to direct Workers when separate context materially helps. Give each Worker an exact read set or acceptance-matrix slice and require evidence-bound results. Keep the Closeout Phase Owner accountable for the complete matrix and verdict; no Worker or Reviewer may edit code, write the verdict, mutate GitHub, delegate further, merge, close the Issue, or approve promotion.
-- Run every reproducible build, test, static check, smoke test, or acceptance command needed by the Issue and risk.
-- Treat Implementation's validation as evidence to confirm, not as a substitute for execution.
-- Record exact commands, results, and relevant environment facts.
+- Reuse a validation result only when the PR, Implementation hand-off, commit status, or CI run identifies the exact command/check, successful result, final head SHA, and relevant environment; independently read that source and confirm that the check still covers the corresponding acceptance item and changed boundary.
+- Do not rerun a current-head check merely to demonstrate phase independence. The Closeout Phase Owner's independence comes from its own source inspection, evidence-admissibility decision, acceptance mapping, and verdict.
+- Rerun the narrow applicable command when evidence is missing, stale, ambiguous, tied to another head, or insufficient for the changed boundary. Also rerun risk-sensitive acceptance when failures would affect security, privacy, destructive data or migration behavior, external compatibility/protocols, difficult-to-reverse architecture, or a broad operational blast radius.
+- Add broader builds, integration tests, static checks, smoke tests, or acceptance commands only when the Issue, changed boundary, repository rules, or risk requires them. Record exact commands, results, reused evidence sources, and relevant environment facts.
 - Verify every required CI/check against the bound head SHA.
 - Wait for pending required checks rather than passing early.
 - Treat failed required checks as an implementation failure unless evidence proves an external infrastructure blocker.
@@ -125,6 +132,16 @@ Never publish a verdict for a stale tuple.
 ## Record an append-only acceptance verdict
 
 Create one complete top-level PR comment for the exact snapshot. Never overwrite a prior round. Compose the exact **Acceptance verdict** artifact from `references/delivery-evidence-contract.md`; that shared contract is the only authority for its fields, values, tuple bindings, and success semantics.
+
+For a verified all-five-`无` PASS, include this acceptance entry exactly once:
+
+~~~yaml
+  - item: durable-memory-impact
+    result: PASS
+    evidence: all-five-none
+~~~
+
+Do not emit `all-five-none` when any category is non-`无`, missing, ambiguous, unsupported, or contradicted by the diff. For a valid concrete durable-memory impact, record the checked category and evidence normally and keep `promotion_required: true` in the phase result.
 
 Use the loaded Pull Request transport protocol to add the exact comment and independently read it back. Bind its comment ID, URL, and Markdown digest. Treat only verified or no-op as a recorded verdict.
 
@@ -199,6 +216,8 @@ eligibility_registration_sha256: null
 promotion_registration_url: null
 promotion_registration_sha256: null
 ready_state_verified: false
+code_only_verified: false
+promotion_required: true
 reason: null
 recovery_condition: null
 handoff:
@@ -212,6 +231,8 @@ handoff:
 `promotion_registration_url` and `promotion_registration_sha256` are retained deprecated aliases for the compatibility result envelope and must equal the corresponding `eligibility_registration_*` fields whenever populated. New hand-offs and consumers use `eligibility_registration_url` / `eligibility_registration_sha256`.
 
 For delegated accepted-ready-pr, set `recipient: delivery-coordinator`, `role: delivery`, and hand off the Issue URL, Ready PR URL, acceptance comment URL, Issue callback URL, eligibility registration URL, and bound tuple. The coordinator must re-read all of them before the product merge gate.
+
+Always populate `code_only_verified` and `promotion_required` according to the five-category rule above. The coordinator may use the fast path only after independently re-reading the PASS comment and finding the exact `durable-memory-impact` / `PASS` / `all-five-none` entry on the unchanged accepted tuple; the ephemeral result fields alone never authorize skipping Context Promotion.
 
 For standalone accepted-ready-pr, recommend `role: delivery` with those persistent URLs so the coordinator resumes at the product merge gate. Preserve `external-review` only for a caller intentionally using the legacy phase path.
 

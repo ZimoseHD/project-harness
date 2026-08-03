@@ -36,7 +36,9 @@ Carry the Implementation phase from one finalized Issue to one independently rea
 
 Apply the root Skill's public-invocation adapter. For a standalone entry, require an exact `role: implementation`, one finalized Issue URL, and the merged proposed-decision PR URL when the Issue requires it. Treat those current-message URLs as semantic sources whether they appear in prose or an optional structured carrier; do not require the caller to reproduce a generated hand-off envelope.
 
-When delegated by `delivery`, also require the root Skill's envelope with `delegated_role: implementation`. For a standalone repair, require the existing Draft PR URL and latest exact Closeout FAIL comment URL in the current user message. For a delegated repair, require them in the bound snapshot or `persistent_evidence_urls`. Re-read both completely; do not rely on the coordinator's explanation of the failure.
+When delegated by `delivery`, also require the root Skill's compact schema-v3 envelope with `delegated_role: implementation`. Require its exact authoritative source URLs, bound Issue/product-PR/memory-PR tuple as applicable, typed evidence-comment URL/digest pairs, persistent evidence URLs, allowed mutations, and `next_action`; do not require an Evidence Bundle, component identity map, or raw source payload. Re-read the semantic sources needed for implementation and apply the loaded transports' normal write guards. Dual-read a historical schema-v2 envelope with its Bundle and a schema-v1 envelope only through the root Skill's compatibility rules and complete fresh-read fallback; never emit or silently upgrade either legacy form.
+
+For a standalone repair, require the existing Draft PR URL and latest exact Closeout FAIL comment URL in the current user message. For a delegated repair, require them in the bound snapshot or `persistent_evidence_urls`. Re-read both completely; do not rely on the coordinator's explanation of the failure.
 
 Reject chat text that changes the goal, boundaries, external behavior, difficult-to-reverse architecture, or acceptance contract. Return return-to-definition instead of treating such text as a hidden requirement.
 
@@ -44,7 +46,7 @@ Reject chat text that changes the goal, boundaries, external behavior, difficult
 
 1. Follow the loaded Issue transport protocol to resolve the exact repository and read the complete open Issue.
 2. Normalize and bind the Issue Body digest.
-3. Establish the authoritative code, test, decision, rule, and durable-source evidence required to implement the Issue contract. Stop when a required fact cannot be established.
+3. Establish only the authoritative code, test, decision, rule, and durable-source evidence needed to implement the Issue contract safely. Do not broaden discovery into a completeness exercise unrelated to the requested behavior. Stop when a required fact cannot be established.
 4. Distinguish binding contract sections from the non-binding implementation plan.
 5. Re-read the Issue before successful hand-off.
 6. Compare any changed Body with the bound version.
@@ -81,7 +83,7 @@ Leave branch naming to the Implementation Phase Owner.
 
 ## Plan and delegate autonomously
 
-- Choose the smallest useful execution plan from the Issue and current repository state.
+- Choose the smallest useful execution plan from the Issue and current repository state. For a simple localized task, proceed directly without manufacturing subplans, research packets, or delegation work.
 - Keep implementation, integration, validation, PR, and phase hand-off responsibility in the Implementation Phase Owner.
 - Delegate only direct, narrow, read-only work when a separate context materially helps exploration, independent research, or verification. Do not delegate bounded implementation writes.
 - Give every Worker an exact read set, question, expected evidence-bound result, and an empty delegated mutation set. Forbid source or durable-artifact writes and forbid further delegation.
@@ -113,7 +115,7 @@ Do not place task-local state in active rules, ADRs, wiki pages, or stable proje
 - Implement the Issue completely, including necessary tests.
 - Adjust the non-binding plan as repository facts require.
 - Record material plan deviations and their reasons for the PR.
-- Run verification proportional to risk and the Issue acceptance checks.
+- Run the smallest verification set that covers the Issue acceptance checks and the actual change risk. Prefer targeted tests and static checks for localized changes; add broader builds, integration tests, or smoke tests only when the changed boundary or repository rules require them.
 - Continue through ordinary implementation and debugging failures.
 - Under `delivery`, checkpoint coherent progress to the task branch and incomplete Draft PR at risk-proportionate boundaries. Do not leave valuable multi-Agent or repair-loop state only in a worktree or Phase Owner context.
 - Use blocked only for an external, permission, environment, target-ambiguity, or unrecoverable-state condition that prevents meaningful progress.
@@ -122,7 +124,7 @@ Do not place task-local state in active rules, ADRs, wiki pages, or stable proje
 Before success, require:
 
 - every binding contract item implemented;
-- all selected validation passing;
+- all risk-proportionate selected validation passing, with every reported command or check bound to the final head SHA;
 - no known unfinished acceptance item;
 - all intended changes committed and pushed;
 - no task-local Execution Packet remaining in the final diff;
@@ -134,13 +136,13 @@ Before success, require:
 
 Use the shared Product PR contract loaded for this role as the exact Body structure and semantic minimum. Include:
 
-- a plain `Refs`-style reference link to the Issue (closing keywords are forbidden; Context Promotion owns the closure judgment and the authorized entry performs the explicit mutation);
+- a plain `Refs`-style reference link to the Issue (closing keywords are forbidden; the authorized `delivery` coordinator owns explicit closure after the selected code-only or promotion path, while standalone Context Promotion retains only its documented compatibility authority);
 - user-observable result;
 - main implementation scope;
 - material plan deviations and reasons;
 - exact validation commands/checks and results;
 - known limitations and risks;
-- factual durable-memory impact for `decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, and `milestone_evidence`, with evidence or an explicit `none` for each category;
+- factual durable-memory impact for `decision`, `stable_rule`, `wiki_knowledge`, `stable_context`, and `milestone_evidence`, using the exact value `无` with non-placeholder evidence when a category has no impact and a concrete impact statement otherwise;
 - bound Issue Body digest;
 - head SHA;
 - base branch `develop` and its base SHA;
@@ -157,6 +159,8 @@ Use the loaded Pull Request transport protocol to:
 5. bind and verify Issue linkage, exact title, Body digest, Draft state, head ref/SHA, and base ref/SHA.
 
 Treat only verified or no-op transport outcomes as success.
+
+In every populated `validation` result and in the PR's verification table, identify the exact command or check, its result, and the final head SHA or immutable CI run that produced it. This binding lets Closeout reuse current-head evidence without mechanically rerunning low-risk checks; stale, incomplete, or unbound evidence remains non-reusable.
 
 ## Preserve recoverable failure state
 
@@ -201,6 +205,8 @@ handoff:
 For delegated verified-draft-pr, set `recipient: delivery-coordinator`, `role: closeout`, and include only the Issue URL and Draft PR URL plus the bound tuple evidence. The coordinator must re-read them before starting a fresh Closeout Phase Owner.
 
 For every populated result, require `branch == head_ref` and bind both to the independently read Draft PR head.
+
+Populate each `validation` entry with the command or check, result, bound `head_sha`, and an evidence URL when one exists. Keep the entry factual and compact; do not embed raw logs or an Evidence Bundle.
 
 For standalone verified-draft-pr, recommend `role: delivery` with the Issue and Draft PR URLs so the coordinator resumes at Closeout without requiring the user to invoke each later phase. Preserve `role: closeout` only for a caller intentionally using the legacy phase path.
 

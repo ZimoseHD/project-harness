@@ -138,7 +138,7 @@ handoff:
   next_action: null
 ~~~
 
-For `verified-existing-decision`, normally hand off the Issue URL and exact merged ADR with `role: delivery`; the first explicit delivery invocation coordinates every phase through the reviewed Context Promotion proposal, then the proposal summary supplies the exact later source-bound re-entry needed for confirmation and any remaining integration. Preserve `role: implementation` only for a caller intentionally using the legacy phase-by-phase path.
+For `verified-existing-decision`, normally hand off the Issue URL and exact merged ADR with `role: delivery`; the first explicit delivery invocation coordinates Implementation and Closeout, then completes the code-only path directly when Closeout independently verifies all five durable-memory categories as `无`. If any category requires promotion, Delivery continues through the reviewed Context Promotion proposal and the proposal summary supplies the exact later source-bound re-entry needed for confirmation and any remaining integration. Preserve `role: implementation` only for a caller intentionally using the legacy phase-by-phase path.
 
 For `verified-decision-pr`, hand off only the Ready decision PR URL to external human or repository review. Start `role: delivery` only after a later explicit invocation independently verifies that PR merged into `develop`.
 
