@@ -36,24 +36,21 @@ EXACT_MERGE_FIELDS = (
 )
 
 MergeDecision = Literal["proceed", "no-op", "blocked", "indeterminate"]
-MergeKind = Literal["product", "memory"]
+MergeKind = Literal["product", "memory", "express"]
 
-PRODUCT_MERGE_EVIDENCE_NAMES = (
-    "closeout-pass",
-    "issue-callback",
-    "eligibility-registration",
-)
+PRODUCT_MERGE_EVIDENCE_NAMES = ("review-pass",)
 
 MEMORY_MERGE_EVIDENCE_NAMES = (
-    "proposal-artifact",
+    "proposal",
     "confirmation",
-    "reviewer-pass",
-    "memory-pr-ready",
 )
+
+EXPRESS_MERGE_EVIDENCE_NAMES: tuple[str, ...] = ()
 
 MERGE_EVIDENCE_NAMES: Mapping[str, tuple[str, ...]] = {
     "product": PRODUCT_MERGE_EVIDENCE_NAMES,
     "memory": MEMORY_MERGE_EVIDENCE_NAMES,
+    "express": EXPRESS_MERGE_EVIDENCE_NAMES,
 }
 
 SUPPORTED_MERGE_METHODS = frozenset({"merge", "squash", "rebase"})
@@ -195,8 +192,7 @@ def _persistent_evidence_matches(
     """Validate exact evidence-key sets and freshly read URL/digest values."""
     names = tuple(required_evidence_names)
     if (
-        not names
-        or any(not _nonempty_string(name) for name in names)
+        any(not _nonempty_string(name) for name in names)
         or len(set(names)) != len(names)
         or set(expected_evidence) != set(names)
         or set(current_evidence) != set(names)
@@ -227,9 +223,10 @@ def exact_merge_guard(
     ``head_sha``, ``base_ref``, and ``base_sha`` values. ``current`` is the
     independently fetched PR/check snapshot and must contain a normalized
     ``required_checks`` mapping from required check name to exact status.
-    ``merge_kind`` selects the protocol-owned exact product or memory gate-key
-    set; callers cannot weaken that set. ``required_evidence`` maps those keys
-    to expected immutable
+    ``merge_kind`` selects the protocol-owned exact product, memory, or
+    express gate-key set; callers cannot weaken that set. The express set is
+    empty by definition, so both evidence mappings must be empty for it.
+    ``required_evidence`` maps those keys to expected immutable
     ``(url, sha256_digest)`` pairs; ``current_evidence`` contains the same
     pairs from an independent read immediately before the decision.
 

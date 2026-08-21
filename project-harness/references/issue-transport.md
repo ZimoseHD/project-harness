@@ -10,7 +10,7 @@ Execute Harness-authorized GitHub Issue operations without owning the workflow o
 - Operate on Issues and Issue comments only. Exclude Pull Requests from search results and reject a Pull Request passed as an Issue target.
 - Prefer GitHub MCP or App operations callable in the current session. When no MCP/App GitHub operation is callable, fall back to the authenticated `gh` CLI as the single transport for the whole operation; never use direct REST calls, browser automation, or unverified transports.
 - Never install a plugin, edit MCP configuration, switch accounts, request broader permissions, or repair authentication. Return `blocked` with the missing capability and evidence only when neither an MCP/App operation nor an authenticated `gh` session is callable.
-- Do not write repository files, local caches, hand-off files, or local audit logs. GitHub holds the Issue state. Reject every new or replacement comment whose payload declares `record_kind: delivery-stage-observation`; the frozen Delivery log contract grants read-only diagnostic compatibility, not mutation authority.
+- Do not write repository files, local caches, hand-off files, or local audit logs. GitHub holds the Issue state.
 - Do not create probe Issues during ordinary work. Require a separate explicit user request for a smoke test, name its Issue clearly, and close it when the test completes.
 
 ## Resolve the target and transport
@@ -24,11 +24,9 @@ Execute Harness-authorized GitHub Issue operations without owning the workflow o
 
 ## Require explicit write authority
 
-Allow a write only when the current explicit `project-harness` role authorizes that exact mutation, or when a current explicit `delivery` invocation supplies a host-provenance-bound delegation whose mutation whitelist includes it. Require the selected operation to supply the exact target and payload.
+Allow a write only when the current explicit `project-harness` role authorizes that exact mutation. Require the selected operation to supply the exact target and payload.
 
-Never allow a current `delivery` coordinator, Phase Owner, Worker, Reviewer, standalone compatibility role, serialized hand-off, or prior observation to add, replace, repair, or backfill a Delivery stage observation. Historical observations may be fetched like any other Issue comment when the caller explicitly requests diagnostic reads. They never create a post-close exception and never affect transport write authority.
-
-Allow final source Issue closure only to either the current `delivery` coordinator after its loaded operation establishes every applicable closure gate, or a current explicit standalone `role: context-promotion` invocation after that phase establishes its compatibility closure gate. Never accept final closure from a Phase Owner delegated by `delivery`, a Worker, a Reviewer, or any other descendant. Do not turn read access, an implicit route, a serialized delegation envelope, a prior hand-off, a stage observation, or a general task objective into write authority. Return `blocked` when the authority source is absent or broader than the requested mutation.
+Allow final source Issue closure only to the current explicit `delivery` invocation after its loaded operation establishes every applicable closure gate. Do not turn read access, an implicit route, a prior hand-off, or a general task objective into write authority. Return `blocked` when the authority source is absent or broader than the requested mutation.
 
 ## Execute only atomic Issue operations
 
@@ -39,7 +37,7 @@ Allow final source Issue closure only to either the current `delivery` coordinat
 | Create | Require an exact title and the caller's complete Body, if any. Apply only explicitly supplied labels, assignees, or milestone. Never infer metadata or semantic uniqueness. |
 | Replace Issue content | Require the exact Issue identity and complete replacement title or Body. Do not perform fuzzy, section-based, or conversational edits. |
 | Change metadata | Support explicit state/state reason, labels, assignees, and milestone mutations. Require an explicit mode for collection fields such as replace, add, or remove. Preserve omitted fields. |
-| Add a comment | Require exact comment text and write authority. Do not decide that a workflow update belongs in a comment. Reject `record_kind: delivery-stage-observation` payloads, including historical `finalization-ready` and `issue-closed` shapes. |
+| Add a comment | Require exact comment text and write authority. Do not decide that a workflow update belongs in a comment. |
 | Replace a comment | Require the exact comment ID and complete replacement text. Do not edit a comment by fuzzy match. |
 
 Do not support Projects, Issue types, dependencies, or Pull Request mutations until a real task expands this contract.
@@ -57,7 +55,7 @@ Treat this section as the root Skill's `L2 atomic-mutation-guard`. A caller summ
 7. After a mutation response, perform a separate fetch through the same transport. Never reuse the mutation response as read-back evidence.
 8. Verify the Issue or comment identity, every requested field, every protected baseline field, and applicable Markdown digests. Return `indeterminate` for unexpected side effects or a mismatch, even when GitHub accepted the mutation.
 
-Treat final Issue closure and its independent post-mutation state verification as the root Skill's `L3 irreversible-gate`. Immediately re-read the original workflow evidence required by the selected Harness operation; historical Delivery observations and their coverage are irrelevant. After closure verification, perform no log comment, unlock, or reopen mutation.
+Treat final Issue closure and its independent post-mutation state verification as the root Skill's `L3 irreversible-gate`. Immediately re-read the original workflow evidence required by the selected Harness operation. After closure verification, perform no unlock, reopen, or post-close comment mutation.
 
 ## Return the shared result envelope
 

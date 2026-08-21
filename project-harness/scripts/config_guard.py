@@ -27,8 +27,6 @@ MARKER_NAMESPACE_PATTERN = re.compile(
 )
 RESERVED_MARKER_SUFFIXES = frozenset(
     {
-        "context-authoring",
-        "context-promotion-eligible",
         "context-promotion",
     }
 )

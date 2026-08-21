@@ -125,7 +125,7 @@ class ConfigParserTests(unittest.TestCase):
             "westwell:tcs",
             "",
             "a" * 64,
-            "context-authoring",
+            "context-promotion",
             123,
         )
         for value in invalid_values:
