@@ -28,9 +28,9 @@ Treat a successful login, global search, enabled connector, or local Git remote 
 
 ## Require exact write authority
 
-Allow a mutation only when the current explicit `project-harness` role authorizes that exact PR mutation, or when a current explicit `delivery` invocation supplies a host-provenance-bound delegation whose mutation whitelist includes it. Require the selected operation to supply the exact repository, target, payload, expected baseline, and protected fields.
+Allow a mutation only when the current explicit `project-harness` role authorizes that exact PR mutation. Require the selected operation to supply the exact repository, target, payload, expected baseline, and protected fields.
 
-Allow `merge` only to the current `delivery` coordinator; never accept it from a Phase Owner, Worker, Reviewer, or other descendant. Do not treat repository write access, an implicit route, a serialized delegation envelope, a prior hand-off, a general implementation request, an acceptance verdict, user confirmation alone, or Ready state as implicit authority for unrelated PR mutations.
+Allow `merge` only under a current explicit `delivery` invocation (product and memory kinds) or a current explicit `express` invocation (express kind). Do not treat repository write access, an implicit route, a prior hand-off, a general implementation request, an acceptance verdict, user confirmation alone, or Ready state as implicit authority for unrelated PR mutations.
 
 ## Support only atomic operations
 
@@ -45,7 +45,7 @@ Allow `merge` only to the current `delivery` coordinator; never accept it from a
 | read-checks | Read combined commit status and applicable workflow runs for the exact head SHA. Report required-check knowledge separately from observed checks. |
 | mark-ready | Change an exact open Draft PR to Ready only with explicit workflow authority. |
 | convert-to-draft | Change an exact open Ready PR to Draft only with explicit workflow authority. |
-| merge | Merge one exact open Ready PR only for the current `delivery` coordinator. Require expected title/Body digest, head ref/SHA, base ref/SHA, known successful required checks, affirmatively established mergeability, exact merge method from a validated Harness integration policy, current repository support for that method, and caller-supplied gate evidence URL/digest pairs. |
+| merge | Merge one exact open Ready PR only under a current explicit `delivery` or `express` invocation. Require expected title/Body digest, head ref/SHA, base ref/SHA, known successful required checks, affirmatively established mergeability, exact merge method from a validated Harness integration policy, current repository support for that method, and caller-supplied gate evidence URL/digest pairs. |
 
 Reject auto-merge, close without merge, reopen, branch creation, commit creation, arbitrary ref updates, Issue mutations, inline code review, reviewer assignment, and semantic approval.
 
@@ -87,10 +87,10 @@ Treat merge as an irreversible integration mutation, not as a convenience state 
 
 Treat this section as the root Skill's `L3 irreversible-gate`. No delegated carrier or cached read replaces or substitutes for this merge guard.
 
-1. Require `role: delivery` authority for the exact Issue lineage and a caller-selected `merge_method` resolved from a valid Harness integration policy: schema-v2 uses the configured product or project-memory method; schema-v1 compatibility uses the sole authoritatively available method. Never choose or substitute a method in the transport.
+1. Require a current explicit `delivery` authority for the exact Issue lineage (product or memory kind), or a current explicit `express` authority for the exact express PR (express kind), plus a caller-selected `merge_method` resolved from a valid Harness integration policy: schema-v2 uses the configured product or project-memory method; schema-v1 compatibility uses the sole authoritatively available method. Never choose or substitute a method in the transport.
 2. Require the exact expected PR title, normalized Body digest, Ready/open state, head ref/SHA, base ref `develop`, base SHA, successful required checks with `required_checks_known: true`, and `mergeable: true` or the selected transport's authoritative equivalent. Treat unknown mergeability as blocked, not as permission to attempt the irreversible mutation.
-3. Require caller-supplied persistent gate evidence URL/digest pairs. For a product PR these identify Closeout PASS, the Issue callback, and eligibility registration. For a project-memory PR they identify the proposal artifact, confirmation, Reviewer PASS, and memory-pr-ready callback. Return blocked when any required URL or normalized whole-comment digest is absent; leave semantic validation to the `delivery` caller.
-4. Set `merge_kind: product` or `merge_kind: memory`; do not accept caller-defined evidence names. The deterministic guard fixes product evidence to `closeout-pass`, `issue-callback`, and `eligibility-registration`, and memory evidence to `proposal-artifact`, `confirmation`, `reviewer-pass`, and `memory-pr-ready`.
+3. Require caller-supplied persistent gate evidence URL/digest pairs. For a product PR the pair identifies the `review` PASS verdict. For a project-memory PR the pairs identify the proposal artifact and the source-bound confirmation. An express merge carries an empty evidence set by definition. Return blocked when any required URL or normalized whole-comment digest is absent; leave semantic validation to the caller.
+4. Set `merge_kind: product`, `merge_kind: memory`, or `merge_kind: express`; do not accept caller-defined evidence names. The deterministic guard fixes product evidence to `review-pass`, memory evidence to `proposal` and `confirmation`, and express evidence to the empty set.
 5. Immediately before merge, obtain the PR/check snapshot, re-read repository merge-method capability, and independently re-read every evidence comment through the applicable loaded transport. Require `merge_methods_known: true` and the selected method to remain in `available_merge_methods`. Compare every expected field, protected field, evidence URL/digest, and protocol-owned evidence kind with the baseline. Return blocked on a missing/extra evidence kind, drift, unavailable configured method, Draft state, unknown or non-successful required checks, wrong base, closed-unmerged state, or mergeability other than affirmative true.
 6. If the exact PR is already merged, independently verify non-Draft state, currently known and successful required checks for the exact head, the expected title/Body/head/base tuple, all protocol-owned evidence URL/digest pairs, the actual merge method as exactly `merge`, `squash`, or `rebase` and equal to the requested authoritative method, verified merge provenance, and a non-null merge commit identity. Return `no-op` only for an exact match; return blocked or indeterminate for a conflicting identity. This recovery proves the current persistent state conservatively; it does not claim that a fresh re-entry observed the checks at the historical merge instant.
 7. Send one merge mutation. Do not retry a timeout or missing response.
@@ -109,7 +109,7 @@ Never weaken a merge gate because branch protection would have rejected an unsaf
 - Normalize the applicable required subset separately as `required_checks`, mapping each unique required check name to exactly `success`, `failure`, `pending`, `missing`, or `unavailable`. An empty mapping is valid only when `required_checks_known: true` proves the authoritative required set is empty; in that case a raw combined status such as `pending` with zero legacy contexts remains diagnostic and does not invent a required-check blocker.
 - Report required_checks_known as false when branch-protection or repository-rule requirements cannot be discovered.
 - Never infer that no observed checks means no required checks.
-- Let the selected `role: closeout` operation decide whether unavailable required-check knowledge blocks acceptance.
+- Let the selected `role: review` operation decide whether unavailable required-check knowledge blocks acceptance.
 
 ## Return the shared result envelope
 

@@ -11,12 +11,11 @@ Treat this file as the sole authoritative schema for the source Issue Body. Keep
 - Put one compact `### 改动范围` subsection inside `非目标与边界`. Describe the ordinary business behavior, modules, or code areas that may change, then use the exact field `受保护改动`. For an ordinary task, write exactly `受保护改动：无`; do not ask the user to approve an empty category checklist.
 - Treat architecture or module boundaries, public APIs, DTOs or serialization, databases or migrations, message protocols, configuration formats, security or permissions, and core dependencies or frameworks as protected surfaces. This list is authoritative for every phase. An Issue authorizes a protected change only when `受保护改动` names the surface and states the exact allowed change plus its compatibility or migration boundary. A broad phrase such as “允许相关调整” is invalid. `受保护改动：无`, an omitted surface, or an ambiguous exception means that protected change is forbidden; the ordinary-business line, implementation plan, Product PR, or an ADR cannot expand it.
 - `按需读取的项目记忆 / 代码事实` lists only sources that materially changed the contract and the conclusion obtained from each.
-- `实现前 Context Authoring` is `required` only for a settled architecture, domain-model, protocol/interface, system-boundary, or project-level technology decision that applies across tasks, must be shared before the product PR merges, and would otherwise create a concrete fork or risk. Otherwise use `not-required` and state why.
 - `合并后 Context Promotion 候选` records non-binding leads only. It never promises a durable write.
 - `confirmed` is required for decisions affecting goals, boundaries, external behavior, constraints, or acceptance. Use `assumed` only for reversible low-risk implementation details and `deferred` only for non-blocking future or externally controlled matters; record the risk and reopening trigger.
-- `实施计划` is a non-binding starting prediction and never grants change authority. Return to Definition when an implementation discovery changes the binding contract or requires a protected change not explicitly allowed by `改动范围`.
+- `实施计划` is a non-binding starting prediction and never grants change authority. Return to `spec` when an implementation discovery changes the binding contract or requires a protected change not explicitly allowed by `改动范围`.
 
-The compact `改动范围` subsection identifies the current Issue format. Publish it for every new Definition. Before continuing an open, unmerged legacy task, return to Definition and add the subsection to the same Issue. Do not bulk-migrate history or rewrite an old Issue solely for this format after its product Pull Request has merged; such a lineage may only complete its existing read-only recovery and closure path without new product-code mutation.
+The compact `改动范围` subsection identifies the current Issue format. Publish it for every new `spec`. Before continuing an open, unmerged legacy task, return to `spec` and add the subsection to the same Issue. Do not bulk-migrate history or rewrite an old Issue solely for this format after its product Pull Request has merged; such a lineage may only complete its existing read-only recovery and closure path without new product-code mutation.
 
 ## Exact Body shape
 
@@ -45,14 +44,6 @@ The compact `改动范围` subsection identifies the current Issue format. Publi
 | <精确来源> | <需要原因> | <采用结论> |
 
 ## 持久项目记忆影响
-
-### 实现前 Context Authoring
-
-- 状态：`required` / `not-required`
-- 架构或技术决策：<结论或不适用>
-- 当前 Issue 以外的消费者：<消费者或不适用>
-- 必须在当前产品 PR 合并前共享的原因：<原因或不适用>
-- 缺失会产生的具体分叉或风险：<风险或不适用>
 
 ### 合并后 Context Promotion 候选
 

@@ -123,17 +123,9 @@ class TransportGuardTests(unittest.TestCase):
 
     def _required_evidence(self) -> dict[str, tuple[str, str]]:
         return {
-            "closeout-pass": (
+            "review-pass": (
                 "https://github.com/owner/repo/pull/7#issuecomment-1",
                 "a" * 64,
-            ),
-            "issue-callback": (
-                "https://github.com/owner/repo/issues/7#issuecomment-2",
-                "b" * 64,
-            ),
-            "eligibility-registration": (
-                "https://github.com/owner/repo/pull/7#issuecomment-3",
-                "c" * 64,
             ),
         }
 
@@ -303,7 +295,7 @@ class TransportGuardTests(unittest.TestCase):
         )
 
         incomplete_evidence = self._required_evidence()
-        incomplete_evidence["issue-callback"] = ("", "b" * 64)
+        incomplete_evidence["review-pass"] = ("", "a" * 64)
         self.assertEqual(
             self._merge_guard(
                 self._merge_snapshot(),
@@ -313,8 +305,8 @@ class TransportGuardTests(unittest.TestCase):
         )
 
         malformed_evidence = self._required_evidence()
-        malformed_evidence["issue-callback"] = (
-            "https://github.com/owner/repo/issues/7#issuecomment-2",
+        malformed_evidence["review-pass"] = (
+            "https://github.com/owner/repo/pull/7#issuecomment-1",
             "not-a-sha256",
         )
         self.assertEqual(
@@ -329,21 +321,13 @@ class TransportGuardTests(unittest.TestCase):
         evidence = self._required_evidence()
         product_names = tuple(evidence)
         memory_evidence = {
-            "proposal-artifact": (
+            "proposal": (
                 "https://github.com/owner/repo/pull/8#issuecomment-1",
                 "d" * 64,
             ),
             "confirmation": (
                 "https://github.com/owner/repo/pull/7#issuecomment-4",
                 "e" * 64,
-            ),
-            "reviewer-pass": (
-                "https://github.com/owner/repo/pull/8#issuecomment-2",
-                "f" * 64,
-            ),
-            "memory-pr-ready": (
-                "https://github.com/owner/repo/pull/7#issuecomment-5",
-                "0" * 64,
             ),
         }
         self.assertEqual(
@@ -427,12 +411,43 @@ class TransportGuardTests(unittest.TestCase):
             ),
         ):
             current_evidence = dict(evidence)
-            current_evidence["closeout-pass"] = changed_pair
+            current_evidence["review-pass"] = changed_pair
             with self.subTest(current_drift=changed_pair):
                 self.assertEqual(
                     self._merge_guard(
                         self._merge_snapshot(),
                         current_evidence=current_evidence,
+                    ),
+                    "blocked",
+                )
+
+    def test_express_merge_requires_an_exactly_empty_evidence_set(self) -> None:
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence={},
+                current_evidence={},
+                merge_kind="express",
+            ),
+            "proceed",
+        )
+
+        for reason, arguments in {
+            "unexpected expected evidence": {
+                "required_evidence": self._required_evidence(),
+                "current_evidence": None,
+            },
+            "unexpected current evidence": {
+                "required_evidence": {},
+                "current_evidence": self._required_evidence(),
+            },
+        }.items():
+            with self.subTest(reason=reason):
+                self.assertEqual(
+                    self._merge_guard(
+                        self._merge_snapshot(),
+                        merge_kind="express",
+                        **arguments,
                     ),
                     "blocked",
                 )
@@ -478,7 +493,7 @@ class TransportGuardTests(unittest.TestCase):
                 )
 
         missing_current_evidence = self._required_evidence()
-        missing_current_evidence.pop("eligibility-registration")
+        missing_current_evidence.pop("review-pass")
         self.assertEqual(
             self._merge_guard(
                 merged,
@@ -579,7 +594,7 @@ class TransportGuardTests(unittest.TestCase):
                 )
 
         missing_current_evidence = self._required_evidence()
-        missing_current_evidence.pop("eligibility-registration")
+        missing_current_evidence.pop("review-pass")
         self.assertEqual(
             self._merge_guard(
                 merged,
