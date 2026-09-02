@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Pure guards for deterministic Pull Request transport decisions.
 
-This module does not call GitHub. It makes the conflict, idempotency, candidate,
+This module calls no hosting platform. It makes the conflict, idempotency, candidate,
 read-back, and ambiguous-recovery rules executable so a transport caller can
-validate snapshots obtained through its single authenticated GitHub transport.
+validate snapshots obtained through its single authenticated platform transport.
 """
 
 from __future__ import annotations

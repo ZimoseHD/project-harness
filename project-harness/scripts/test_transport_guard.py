@@ -210,6 +210,22 @@ class TransportGuardTests(unittest.TestCase):
                     "proceed",
                 )
 
+    def test_guard_is_indifferent_to_platform_url_forms(self) -> None:
+        evidence = {
+            "review-pass": (
+                "https://gitlab.com/group/subgroup/repo/-/merge_requests/7#note_12",
+                "a" * 64,
+            )
+        }
+        self.assertEqual(
+            self._merge_guard(
+                self._merge_snapshot(),
+                required_evidence=evidence,
+                current_evidence=dict(evidence),
+            ),
+            "proceed",
+        )
+
     def test_exact_merge_guard_blocks_tuple_or_base_drift(self) -> None:
         for field, changed in {
             "title": "Changed title",

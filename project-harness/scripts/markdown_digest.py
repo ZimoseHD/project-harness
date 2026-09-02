@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Normalize Project Harness GitHub Markdown and calculate a stable SHA-256 digest."""
+"""Normalize Project Harness Markdown and calculate a stable SHA-256 digest."""
 
 from __future__ import annotations
 

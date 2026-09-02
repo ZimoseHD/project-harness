@@ -1,27 +1,27 @@
-# GitHub Pull Request Transport Protocol
+# Pull Request Transport Protocol
 
 Load this internal protocol only when the selected operation row in the root Skill names the Pull Request transport.
 
-Execute Harness-authorized GitHub Pull Request operations without owning the workflow or meaning of the Pull Request. Never invoke this reference as a separate Skill.
+Execute Harness-authorized Pull Request operations on the consuming project's hosting platform without owning the workflow or meaning of the Pull Request. Never invoke this reference as a separate Skill.
 
 ## Keep the transport boundary
 
 - Accept exact intent and payload from the selected Harness operation.
 - Leave PR wording, Issue relationship classification, implementation status, acceptance verdicts, merge decisions, and durable project-memory selection to the caller.
 - Operate on Pull Requests, their top-level conversation comments, their exact refs, and check evidence only.
-- Prefer callable GitHub MCP or App operations in the current session. When no MCP/App GitHub operation is callable, fall back to the authenticated `gh` CLI as the single transport for the whole operation.
+- Prefer a callable platform MCP or App operation in the current session. When no MCP/App operation for the platform is callable, fall back to the platform's official authenticated CLI as the single transport for the whole operation.
 - Never use direct REST calls, browser automation, or a second authenticated transport.
 - Never install a plugin, edit MCP configuration, switch identity, broaden permissions, create Git commits, push branches, enable auto-merge, close without merge, reopen, or delete a Pull Request. Support only the exact guarded merge operation defined below.
 - Return blocked when a required capability or exact authority is unavailable.
 
 ## Resolve the repository and target
 
-1. Prefer an explicit PR URL or owner/repo plus PR number.
-2. Derive owner/repo from the workspace only when exactly one unambiguous GitHub remote exists.
+1. Prefer an explicit PR URL or the repository identity plus PR number.
+2. Derive the repository identity from the workspace only when exactly one unambiguous remote on a supported hosting platform exists.
 3. Read metadata for the exact repository before trusting access.
 4. Discover callable operations by capability rather than tool namespace. When requested for Delivery preflight or merge, report whether repository merge-method capability is known and return the exact sorted subset of `merge`, `squash`, and `rebase` currently available.
 5. Require only the capabilities needed for the requested atomic operation and its independent read-back.
-6. Use one authenticated GitHub transport for the entire operation.
+6. Use one authenticated platform transport for the entire operation.
 7. Independently resolve the selected transport's authenticated actor login/ID and the login that its mutations will author. Return them as a verified identity record; return blocked when either identity is ambiguous.
 
 Treat a successful login, global search, enabled connector, or local Git remote as insufficient proof of repository access.
@@ -42,7 +42,7 @@ Allow `merge` only under a current explicit `delivery` invocation (product and m
 | replace-content | Require the exact PR and a complete replacement title and/or Body. Never patch a fuzzy section. |
 | add-comment | Require exact Markdown comment text and explicit authority. |
 | replace-comment | Require exact comment ID, complete replacement text, and explicit authority. |
-| read-checks | Read combined commit status and applicable workflow runs for the exact head SHA. Report required-check knowledge separately from observed checks. |
+| read-checks | Read the platform's check evidence for the exact head SHA. Report required-check knowledge separately from observed checks. |
 | mark-ready | Change an exact open Draft PR to Ready only with explicit workflow authority. |
 | convert-to-draft | Change an exact open Ready PR to Draft only with explicit workflow authority. |
 | merge | Merge one exact open Ready PR only under a current explicit `delivery` or `express` invocation. Require expected title/Body digest, head ref/SHA, base ref/SHA, known successful required checks, affirmatively established mergeability, exact merge method from a validated Harness integration policy, current repository support for that method, and caller-supplied gate evidence URL/digest pairs. |
@@ -77,7 +77,7 @@ Treat this section as the root Skill's `L2 atomic-mutation-guard`. A caller summ
 9. Recover through read/search only when identity, expected digest, refs, and operation evidence prove the original mutation succeeded. Otherwise return indeterminate.
 10. Perform a separate fetch through the same transport after every mutation.
 11. Verify identity, every requested field, applicable digests, refs, Draft/Ready state, and every protected baseline field.
-12. Return indeterminate for any mismatch or unexpected side effect, even if GitHub accepted part of the request.
+12. Return indeterminate for any mismatch or unexpected side effect, even if the platform accepted part of the request.
 
 For create-draft, search immediately before creation and never create when the caller has not resolved multiple or ambiguous active candidates.
 
@@ -104,10 +104,10 @@ Never weaken a merge gate because branch protection would have rejected an unsaf
 ## Report check evidence conservatively
 
 - Bind check reads to the exact head SHA.
-- Return combined commit status and each observed status/workflow run.
+- Return the platform's aggregate check status and each observed check run.
 - Distinguish success, failure, pending, missing, and unavailable capability.
-- Normalize the applicable required subset separately as `required_checks`, mapping each unique required check name to exactly `success`, `failure`, `pending`, `missing`, or `unavailable`. An empty mapping is valid only when `required_checks_known: true` proves the authoritative required set is empty; in that case a raw combined status such as `pending` with zero legacy contexts remains diagnostic and does not invent a required-check blocker.
-- Report required_checks_known as false when branch-protection or repository-rule requirements cannot be discovered.
+- Normalize the applicable required subset separately as `required_checks`, mapping each unique required check name to exactly `success`, `failure`, `pending`, `missing`, or `unavailable`. An empty mapping is valid only when `required_checks_known: true` proves the authoritative required set is empty; in that case a raw aggregate status such as `pending` with zero entries remains diagnostic and does not invent a required-check blocker.
+- Report required_checks_known as false when the authoritative required-check configuration cannot be discovered.
 - Never infer that no observed checks means no required checks.
 - Let the selected `role: review` operation decide whether unavailable required-check knowledge blocks acceptance.
 
@@ -120,7 +120,7 @@ outcome: verified | no-op | blocked | indeterminate
 operation: search | read | create-draft | replace-content | add-comment | replace-comment | read-checks | mark-ready | convert-to-draft | merge
 repository: owner/repo
 pr_number: 123
-url: https://github.com/owner/repo/pull/123
+url: https://example.com/owner/repo/pull/123
 authenticated_actor:
   login: null
   id: null
@@ -184,6 +184,29 @@ reason: null
 
 Include the complete PR Body, comment Body, or unified diff only when requested by the caller. Always include its digest when it exists. For every requested comment, always include ID, URL, author, creation time, and digest so workflow authorship, immutable-baseline, predecessor, and legacy checks are executable. When changed-file or diff evidence is requested, always return the complete sorted file metadata and `diff_sha256`. Set `merge_methods_known: true` only after authoritative repository metadata establishes the complete available set; sort that set and reject unknown values. Treat only verified and no-op as success.
 
+## Adapt the canonical contract to each hosting platform
+
+The sections above are the only Pull Request transport contract. This section names how each canonical capability lands on a supported hosting platform; it adds no operation, field, gate, or outcome. GitHub and GitLab are the supported hosting platforms; adding another extends this section and nothing else. The transport fallback chain is the same on every platform: prefer a callable platform MCP or App operation, then fall back to that platform's official authenticated CLI (`gh` on GitHub, `glab` on GitLab), and return `blocked` when neither is callable.
+
+| Canonical concept | GitHub | GitLab |
+| --- | --- | --- |
+| Repository identity (`repository` value and URL) | `owner/repo`; `https://github.com/owner/repo/pull/N` | Full project path including nested groups; `https://<host>/<group>/<project>/-/merge_requests/N` |
+| Open state | `open` | `opened` — report `open` |
+| `merge` | merge commit, selected per PR from the repository's enabled merge buttons | project-level merge method "merge commit" ("merge commit with semi-linear history" also executes `merge`, additionally requiring a ff-able head) |
+| `squash` | squash and merge | the per-merge-request squash option at merge time; the project must allow squash |
+| `rebase` | rebase and merge | project-level merge method "fast-forward" — GitLab fast-forward does not rebase for you: a head not based on the guarded base is not affirmative mergeability and remains blocked |
+| `available_merge_methods` | the repository's enabled merge-button set | the subset of canonical methods the project can execute: the one implied by its merge-method setting, plus `squash` when squash is allowed |
+| Draft/Ready (`is_draft`, mark-ready, convert-to-draft) | first-class Draft state | the `Draft:` title prefix: mark-ready removes the prefix, convert-to-draft adds it |
+| Required-check discovery source | branch protection and repository rulesets | protected branches with "Pipelines must succeed" and the required pipeline configuration |
+| Observed checks (`checks`) | combined commit status and workflow runs | pipelines and jobs for the head SHA |
+| `mergeable: true` | `mergeable: true` | an affirmative clean merge status — conflicts, unchecked, and unknown are never true |
+| Top-level PR comment | PR conversation comment | top-level merge-request note, not a diff-thread reply; callbacks are written only as top-level notes and complete inventories enumerate all notes |
+| Comment anchor | `#issuecomment-<id>` | `#note_<id>` |
+| Actor `login` / `id` | login / id | username / id |
+| Platform PR template (forbidden by the Product PR contract) | `.github/PULL_REQUEST_TEMPLATE` | `.gitlab/merge_request_templates` |
+
+On GitLab, `merge` and `rebase` are project-level settings while `squash` is a per-merge option; the transport never substitutes or reorders a method. For `rebase` merges, `merge_commit_sha` is the resulting base tip (neither platform creates a merge commit); verifying a historical `merge_method` uses the platform's own merge attributes — when the platform cannot prove it, return blocked or indeterminate rather than inferring. When a merge advances the live base tip, both platforms may expose the advanced tip instead of the guarded base; the existing `guarded_base_sha` provenance record already covers this on either platform. `is_draft` is derived from the platform's own draft representation; on GitLab a title prefix is that representation.
+
 ## Use the bundled verifier
 
 Calculate a digest:
@@ -206,4 +229,4 @@ python3 scripts/test_markdown_digest.py
 python3 scripts/test_transport_guard.py
 ~~~
 
-scripts/transport_guard.py makes idempotent content comparison, protected-baseline conflict detection, unique-candidate selection, exact read-back, ambiguous-mutation recovery, and the pre-merge/ambiguous-merge decision executable without introducing another GitHub transport. Call `exact_merge_guard` with `merge_kind`, the exact expected tuple, expected and freshly read evidence URL/digest maps, checks, mergeability, and merge method. The function owns the exact product/memory evidence-name sets and supports a separately recorded `guarded_base_sha` when a post-merge API exposes an advanced live base tip. Treat its failure-path results as binding; never weaken them from a selected Harness operation.
+scripts/transport_guard.py makes idempotent content comparison, protected-baseline conflict detection, unique-candidate selection, exact read-back, ambiguous-mutation recovery, and the pre-merge/ambiguous-merge decision executable without introducing another platform transport. Call `exact_merge_guard` with `merge_kind`, the exact expected tuple, expected and freshly read evidence URL/digest maps, checks, mergeability, and merge method. The function owns the exact product/memory evidence-name sets and supports a separately recorded `guarded_base_sha` when a post-merge API exposes an advanced live base tip. Treat its failure-path results as binding; never weaken them from a selected Harness operation.

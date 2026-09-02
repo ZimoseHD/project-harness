@@ -137,11 +137,11 @@ In every reported validation result, identify the exact command or check, its re
 When returning blocked after valuable work:
 
 - commit and push coherent changes when safe;
-- create or update a clearly incomplete Draft PR when GitHub is available;
+- create or update a clearly incomplete Draft PR when the platform transport is available;
 - retain useful Execution Packet state;
 - report exact branch, head SHA, PR URL when present, dirty paths, completed checks, blocker, and recovery condition.
 
-When GitHub is unavailable, report exact local branch, commit, and worktree state. Do not fabricate a verified PR.
+When the platform transport is unavailable, report exact local branch, commit, and worktree state. Do not fabricate a verified PR.
 
 ## Return a phase result
 
@@ -149,7 +149,7 @@ Return one result only.
 
 ~~~yaml
 outcome: verified-draft-pr | return-to-spec | blocked
-issue_url: https://github.com/owner/repo/issues/123
+issue_url: https://example.com/owner/repo/issues/123
 issue_body_sha256: null
 repository: owner/repo
 branch: null

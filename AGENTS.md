@@ -13,7 +13,7 @@ Harness 的目标是让 Agent 稳定交付代码，而不是让审计协议成�
 本仓库负责：
 
 - 两条交付路径：路径 1（plan → spec → implementation → review → context promotion）与路径 2（express 敏捷路径）；
-- GitHub Issue 与 Product PR 的交付合同；
+- 托管平台（GitHub、GitLab）Issue 与 Product PR 的交付合同；
 - Issue / Pull Request 原子传输、并发保护和写后回读；
 - 合并门、显式 Issue 关闭和记忆写入的 source-bound 用户确认；
 - 当前格式 artifact 的确定性解析、测试；
@@ -22,7 +22,7 @@ Harness 的目标是让 Agent 稳定交付代码，而不是让审计协议成�
 本仓库不负责：
 
 - 采用 Harness 的业务项目；
-- 通用项目管理或通用 GitHub 自动化；
+- 通用项目管理或通用托管平台自动化；
 - 消费项目 `.project-harness/config.yaml`、Issue/PR 快照或实际项目记忆的托管；
 - v1 时代持久 artifact 的读取、迁移或恢复（见 `project-harness/MIGRATION.md` 的断代说明）；
 - CC-Switch 刷新以及向 Codex/Claude 同步或启用 Skill。
@@ -73,7 +73,7 @@ v2 删除了 v1 的全部编排合同：固定两跳拓扑、Phase Owner/Worker/
 | `project-harness/references/init.md` | 消费项目 Harness 配置创建与校验 |
 | `project-harness/references/{spec,implementation,review,context-promotion,express}.md` | 各角色专属输入、行为、验证、输出和停止位置 |
 | `project-harness/references/{issue,product-pr}-contract.md` | Issue / Product PR Body 的唯一结构契约 |
-| `project-harness/references/*-transport.md` | GitHub 原子 I/O、并发保护、merge guard 和回读结果 |
+| `project-harness/references/*-transport.md` | 平台中立原子 I/O、并发保护、merge guard、回读结果与 GitHub/GitLab 适配映射 |
 | `project-harness/scripts/` | 无业务授权判断和网络副作用的确定性辅助机制及测试 |
 | `project-harness/agents/openai.yaml` | Codex 展示信息与禁止隐式调用的宿主适配元数据 |
 | `project-harness/MIGRATION.md` | v1 → v2 断代说明 |
@@ -86,7 +86,7 @@ v2 删除了 v1 的全部编排合同：固定两跳拓扑、Phase Owner/Worker/
 1. 只接受当前用户消息明确提供的 `init`、`spec`、`implementation`、`review`、`context-promotion`、`delivery`、`express`；不设别名。无精确角色的原始需求走"agent 建议 + 用户确认"的路径选择，不静默推断。Codex 需要 `$project-harness`，Claude 加载本身不补全角色、来源或 mutation authority。
 2. Issue 是交付合同，Product PR 是实现与验证载体；Issue 的紧凑 `改动范围` 是产品改动的唯一授权源；8 类受保护表面只在 `issue-contract.md` 集中定义并默认禁止；express 绝对禁止受保护表面，违者升级路径 1。
 3. 权威 URL、仓库事实和显式授权不能由目录名、历史聊天、普通 hand-off 或模型记忆补全。
-4. GitHub 写入必须保留 L2 安全门：基线读取、更新前复查、一次 mutation、写后独立回读、受保护字段和规范化 digest。
+4. 平台写入必须保留 L2 安全门：基线读取、更新前复查、一次 mutation、写后独立回读、受保护字段和规范化 digest。
 5. 只有 `verified` 或 `no-op` 表示成功；部分、歧义、缺失和字段漂移均 fail closed。
 6. merge gate 保留 L3：exact tuple、`required_checks_known: true` 且 required checks 全绿、affirmative mergeability、配置化 merge method、base `develop`、协议拥有的固定 evidence key 集（product=`review-pass`；memory=`proposal`+`confirmation`；express=空集）。只有当前显式 `delivery` 可合并 product/memory PR 并关闭 Issue；只有当前显式 `express` 可合并自己的轻量 PR。禁止 closing keywords，Issue 以显式 `change-metadata` 关闭并回读 `closed/completed`。
 7. 项目记忆实际写入必须保留 split-turn source-bound 用户确认（proposal URL + whole-comment digest，approved/revise/pause）；不强制独立 Reviewer；首轮全 `no_write` 不创建任何 artifact。
@@ -101,7 +101,7 @@ v2 删除了 v1 的全部编排合同：固定两跳拓扑、Phase Owner/Worker/
 
 ## Skill 更新工作流
 
-**长任务执行前确认。** 在形成计划所需的最小只读勘察后，若任务较长，先向用户说明阶段、影响范围、验证方式和所有提交/发布写入，并等待明确确认。确认前不得修改文件、GitHub、提交或发布。
+**长任务执行前确认。** 在形成计划所需的最小只读勘察后，若任务较长，先向用户说明阶段、影响范围、验证方式和所有提交/发布写入，并等待明确确认。确认前不得修改文件、托管平台、提交或发布。
 
 1. 将需求归类为文案澄清、行为调整或兼容性变更，并明确迁移。
 2. 完整阅读 `SKILL.md`、受影响阶段、共享契约及所有生产者/消费者。
@@ -114,7 +114,7 @@ v2 删除了 v1 的全部编排合同：固定两跳拓扑、Phase Owner/Worker/
 
 修改 Markdown 时精确保留机器可识别的角色、字段、状态、marker、标题和代码块。修改 Python 时优先标准库、清晰纯函数和成对成功/失败测试。
 
-不得生成或提交消费项目配置、真实 GitHub 回调、任务临时文件或实际项目记忆。不得把 `__pycache__`、`.pyc`、`.DS_Store`、`*:Zone.Identifier`、编辑器或构建产物放入 Skill。
+不得生成或提交消费项目配置、真实平台回调、任务临时文件或实际项目记忆。不得把 `__pycache__`、`.pyc`、`.DS_Store`、`*:Zone.Identifier`、编辑器或构建产物放入 Skill。
 
 ## 验证
 

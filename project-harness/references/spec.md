@@ -2,14 +2,14 @@
 
 Execute this phase only after `project-harness` dispatches `role: spec`.
 
-Carry the Spec phase by turning a grilled, user-confirmed plan into the single GitHub Issue that downstream phases can execute without access to the preceding conversation.
+Carry the Spec phase by turning a grilled, user-confirmed plan into the single delivery Issue that downstream phases can execute without access to the preceding conversation.
 
 ## Contents
 
 - Enforce the boundary
 - Require a grilled and confirmed plan
 - Accept the initial semantic input
-- Use the internal GitHub transports
+- Use the internal transports
 - 1. Run the preflight
 - 2. Draft the Issue
 - 3. Bind and check the exact draft
@@ -22,8 +22,8 @@ Carry the Spec phase by turning a grilled, user-confirmed plan into the single G
 - Treat the explicit invocation as authorization to create or update the Issue after every gate passes. Do not request a final human publishing confirmation.
 - Subagent use is unconstrained: spawn read-only explorers or a fresh-eyes reviewer whenever separate context materially helps, and integrate their results yourself. The Harness fixes no topology, delegation envelope, or review-round count.
 - Do not implement product code, modify tests, create a Pull Request, or write durable project memory.
-- Keep drafts and decision notes ephemeral. Persist task facts only in the GitHub Issue.
-- Fail closed whenever a required decision, GitHub write, or read-back verification is unavailable.
+- Keep drafts and decision notes ephemeral. Persist task facts only in the delivery Issue.
+- Fail closed whenever a required decision, platform write, or read-back verification is unavailable.
 
 ## Require a grilled and confirmed plan
 
@@ -48,7 +48,7 @@ Handle uncertainty conservatively:
 
 Apply the root Skill's public-invocation adapter. Require an exact `role: spec` and the raw or changed requirement in the current user message. For an initial Spec, accept an optional explicitly targeted Issue URL; when the user intends to update an existing contract, require that exact Issue target in the current message. Otherwise define a new task only after duplicate checks.
 
-## Use the internal GitHub transports
+## Use the internal transports
 
 - Follow the loaded Issue transport protocol for repository resolution, Issue search and read, Body normalization and digesting, Issue create or update, and independent read-back verification. Do not duplicate its transport or consistency rules here.
 - Follow the loaded Pull Request transport protocol only for the related Pull Request search and read evidence required by duplicate and completion checks.
@@ -99,7 +99,7 @@ Immediately before publishing, repeat the semantic duplicate and target-state ch
 
 Use the loaded Issue transport protocol to publish only the exact title and Body that passed the check. Declare all unrelated Issue metadata as protected baseline fields.
 
-Require the returned transport envelope to report `verified` or `no-op`, the expected Issue identity and title, the checked Body digest, protected-field preservation, and successful independent read-back. Any other outcome means the phase is incomplete even if GitHub may have accepted part of the operation. Report the exact state and do not claim success.
+Require the returned transport envelope to report `verified` or `no-op`, the expected Issue identity and title, the checked Body digest, protected-field preservation, and successful independent read-back. Any other outcome means the phase is incomplete even if the platform may have accepted part of the operation. Report the exact state and do not claim success.
 
 ## 5. Hand off and stop
 
