@@ -49,7 +49,7 @@ Authorize only this Issue's phase mutations, configured PR merges, the required 
 
 ## Reconstruct the next action
 
-Recover from GitHub state rather than chat:
+Recover from platform state rather than chat:
 
 1. Read the exact Issue and relevant workflow comments.
 2. Search related open, closed-unmerged, and merged product and project-memory PRs.
@@ -191,7 +191,7 @@ Return:
 ~~~yaml
 outcome: completed | return-to-spec | blocked
 delivery_path: code-only | direct-no-promotion | memory-promotion | confirmed-no-promotion | null
-issue_url: https://github.com/owner/repo/issues/123
+issue_url: https://example.com/owner/repo/issues/123
 issue_body_sha256: null
 product_pr_url: null
 product_pr_title: null

@@ -100,7 +100,7 @@ For a delivery-contract defect:
 2. Keep the PR Draft.
 3. Return return-to-spec for the same Issue.
 
-For an external, permission, environment, required-check-discovery, or human-confirmation blocker, record BLOCKED when GitHub writing remains available, preserve the Draft PR, and return blocked with the recovery condition.
+For an external, permission, environment, required-check-discovery, or human-confirmation blocker, record BLOCKED when platform writing remains available, preserve the Draft PR, and return blocked with the recovery condition.
 
 Impose no arbitrary retry limit. Every repaired head SHA changes the bound input and receives a new append-only verdict.
 
@@ -116,9 +116,9 @@ Fail closed on a partial or ambiguous mutation. Review never merges. A later tit
 
 ~~~yaml
 outcome: accepted-ready-pr | return-to-implementation | return-to-spec | blocked
-issue_url: https://github.com/owner/repo/issues/123
+issue_url: https://example.com/owner/repo/issues/123
 issue_body_sha256: null
-pr_url: https://github.com/owner/repo/pull/456
+pr_url: https://example.com/owner/repo/pull/456
 pr_title: null
 pr_body_sha256: null
 head_ref: null

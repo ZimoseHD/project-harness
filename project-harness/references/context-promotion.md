@@ -93,7 +93,7 @@ After a terminal, report that the source Issue is ready for closure by the curre
 ~~~yaml
 outcome: awaiting-confirmation | verified-memory-pr | memory-pr-merged | no-promotion | direct-no-promotion | return-to-spec | blocked
 reason: null
-issue_url: https://github.com/owner/repo/issues/123
+issue_url: https://example.com/owner/repo/issues/123
 source_pr_url: null
 source_head_sha: null
 proposal_artifact_url: null

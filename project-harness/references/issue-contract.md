@@ -2,7 +2,7 @@
 
 Load this shared artifact contract only when the selected operation row in the root Skill names the Issue contract.
 
-Treat this file as the sole authoritative schema for the source Issue Body. Keep the headings and order exact, replace every placeholder with task-specific content, and do not publish guidance comments or empty placeholder rows. Do not look for or create a `.github` Issue template.
+Treat this file as the sole authoritative schema for the source Issue Body. Keep the headings and order exact, replace every placeholder with task-specific content, and do not publish guidance comments or empty placeholder rows. Do not look for or create a platform Issue template.
 
 ## Field rules
 

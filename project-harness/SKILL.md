@@ -42,9 +42,9 @@ For an actual Context Promotion write proposal, or an already-persisted unconfir
 ~~~yaml
 role: delivery | context-promotion
 authoritative_sources:
-  - https://github.com/owner/repo/issues/123
+  - https://example.com/owner/repo/issues/123
 user_decision:
-  proposal_url: https://github.com/owner/repo/pull/456#issuecomment-789
+  proposal_url: https://example.com/owner/repo/pull/456#comment-789
   proposal_sha256: SHA256
   decision: approved | revise | pause
   modification_items: []

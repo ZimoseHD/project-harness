@@ -2,7 +2,7 @@
 
 Load this shared artifact contract only when the selected operation row in the root Skill names the Product PR contract.
 
-Treat this file as the sole authoritative schema for the product Pull Request Body. Keep the headings and order exact, replace every placeholder with source-bound evidence, and do not publish guidance comments or empty placeholder rows. Do not use this contract for project-memory-only Pull Requests, and do not look for or create a `.github` Pull Request template.
+Treat this file as the sole authoritative schema for the product Pull Request Body. Keep the headings and order exact, replace every placeholder with source-bound evidence, and do not publish guidance comments or empty placeholder rows. Do not use this contract for project-memory-only Pull Requests, and do not look for or create a platform Pull Request template.
 
 ## Field rules
 

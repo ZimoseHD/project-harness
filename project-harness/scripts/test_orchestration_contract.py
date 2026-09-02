@@ -235,6 +235,43 @@ class OrchestrationContractTests(unittest.TestCase):
         ):
             self.assertIn(fragment, self.pr_transport)
 
+    def test_transport_cores_are_platform_neutral(self) -> None:
+        for text in (self.issue_transport, self.pr_transport):
+            core, separator, adaptation = text.partition(
+                "## Adapt the canonical contract to each hosting platform"
+            )
+            self.assertTrue(
+                separator, "transport must define a platform adaptation section"
+            )
+            for term in ("GitHub", "GitLab", "`gh`", "`glab`"):
+                self.assertIn(term, adaptation)
+            self.assertNotIn("github", core.lower())
+            self.assertNotIn("gitlab", core.lower())
+
+    def test_phase_and_contract_texts_are_platform_neutral(self) -> None:
+        for text in (
+            self.skill,
+            self.delivery,
+            self.spec,
+            self.implementation,
+            self.review,
+            self.promotion,
+            self.express,
+            self.evidence,
+            self.issue_contract,
+            self.product_contract,
+            self.openai,
+        ):
+            self.assertNotIn("github", text.lower())
+
+    def test_official_cli_fallback_discipline_is_retained(self) -> None:
+        for text in (self.issue_transport, self.pr_transport):
+            self.assertIn("direct REST calls", text)
+            self.assertIn("browser automation", text)
+        self.assertIn("`merge`, `squash`, and `rebase`", self.pr_transport)
+        self.assertIn("平台写入必须保留 L2 安全门", self.governance)
+        self.assertIn("平台中立原子 I/O", self.governance)
+
     def test_issue_closure_stays_explicit(self) -> None:
         self.assertIn("change-metadata", self.delivery)
         self.assertIn("state_reason: completed", self.delivery)
