@@ -1,6 +1,6 @@
 interface:
   display_name: "Project Harness"
-  short_description: "Deliver code through a guarded Issue-scoped path or a fast express path"
-  default_prompt: "Use $project-harness explicitly in a code-capable mode. For a substantial or risky task, run path 1: stress-test the plan with grilling-style questioning and user confirmation, write the Issue with role: spec—keeping every protected change within an explicit Issue exception and ordinary tasks at the exact literal 受保护改动：无—then run role: delivery to implement, review against the Issue boundary and unit tests, merge the accepted product PR, skip Context Promotion only when all five durable-memory impact values are the exact literal 无 and the review PASS verifies all-five-none, and close the Issue after guarded read-back; enter the source-bound confirmation flow only for an actual project-memory write. For a small low-risk change, run role: express: confirm the scope once, implement with unit tests, and merge the lightweight PR through the guarded express gate; express never touches a protected surface. Use role: init for schema-v2 integration policy."
+  short_description: "Follow full delivery or express with agent judgment"
+  default_prompt: "Use $project-harness to choose full delivery or express for this task and follow the workflow with agent judgment."
 policy:
   allow_implicit_invocation: false
