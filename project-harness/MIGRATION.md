@@ -6,7 +6,7 @@ v3 将 Harness 改为工作流指引，取消所有 Harness 自建 gate。两条
 
 | 表面 | v3 行为 |
 | --- | --- |
-| 完整路径 | plan → spec → implementation → review → 产品合并 → 按需整理记忆 → 关闭 Issue |
+| 完整路径 | plan → spec → delivery；delivery 根据 Issue 自主组织工作，参考 reviewer 与 context-promotion 提醒，无固定内部流程 |
 | express | 范围说明 → 实现与测试 → 轻量 PR → 合并 → 总结 |
 | 阶段入口 | 保留 init、spec、implementation、review、context-promotion、delivery、express；支持自然语言和已有上下文，不要求当前消息重复结构化角色及来源 |
 | 阶段停止位置 | 单独调用仍在该阶段结束；选择完整路径或调用 delivery 时连续推进 |
@@ -20,6 +20,10 @@ v3 将 Harness 改为工作流指引，取消所有 Harness 自建 gate。两条
 | 宿主适配 | 保留 Codex 显式加载与 Claude 加载方式；不再以角色字段校验代替理解用户请求 |
 
 用户指示、真实授权和宿主权限继续适用；GitHub/GitLab 自身的分支保护和规则不会被改写。取消 Harness gate 不表示测试失败、未完成工作或未发生的合并可以报告为成功。
+
+## Delivery 自主执行调整
+
+后续精简取消 delivery 的固定阶段顺序、恢复分支表和合并/关闭时序，仅保留从 Issue 获取任务信息、使用 reviewer 和 context-promotion 三项提醒。reviewer 的选择、介入时机与协作方式由 Agent 决定，不引入拓扑或证据要求；没有值得记录的知识时，context-promotion 可简短说明无需写入。单阶段入口仍可独立使用，delivery 按需参考其内容。已有任务直接按实际进度继续，无配置或持久数据迁移。
 
 ## 删除的资源
 

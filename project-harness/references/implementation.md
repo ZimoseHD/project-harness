@@ -10,4 +10,4 @@ Work on the task branch, preserve other changes, and implement the behavior with
 
 Commit and push the implementation and create or update a Draft Product PR using the [Product PR template](product-pr-template.md) and [Hosting operations](hosting.md). Summarize the result, main changes, tests actually run, and relevant limitations. Mention useful memory candidates if any arose; no fixed category table is needed.
 
-Return the PR link and test summary. A standalone invocation stops with the Draft PR. Under `delivery`, continue to review. If an external problem prevents completion, retain useful work and report what remains and where to resume.
+Return the PR link and test summary. A standalone invocation stops with the Draft PR. Within `delivery`, use this guidance as helpful and choose what to do next. If an external problem prevents completion, retain useful work and report what remains and where to resume.

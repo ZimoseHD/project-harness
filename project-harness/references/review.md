@@ -10,4 +10,4 @@ Write concise findings and a recommendation on the PR through [Hosting operation
 
 Use ordinary prose. There is no required PASS artifact, fixed list of review items, checksum, or comment lineage. An edited PR description does not automatically trigger another review; assess substantive changes and review what needs attention.
 
-A standalone review ends after reporting findings and the recommendation; leave implementation fixes and merge to the delivery work. Under `delivery`, address findings and continue. Review does not add requirements beyond the user's task.
+A standalone review ends after reporting findings and the recommendation; leave implementation fixes and merge to the delivery work. Within `delivery`, use the findings to decide how to proceed. Review does not add requirements beyond the user's task.

@@ -12,7 +12,7 @@ Follow a practical delivery workflow and use agent judgment to move the work for
 
 Use the user's chosen path or phase. Otherwise choose a path from the task's size and uncertainty, explain the choice in one sentence, and proceed:
 
-- **Full delivery:** plan → spec → implementation → review → merge product PR → context-promotion when useful → close Issue.
+- **Full delivery:** plan → spec → autonomous delivery from the Issue. See [Delivery](references/delivery.md) for its reminders.
 - **Express:** summarize scope → implement and test → lightweight PR → merge → summarize.
 
 Plan with the host's native capabilities. Ask questions when their answers materially affect the work; use grilling when helpful or requested. Planning and path selection need no fixed confirmation round.
@@ -30,10 +30,10 @@ For Codex, invoke with `$project-harness`; [agents/openai.yaml](agents/openai.ya
 | `implementation` | [Implementation](references/implementation.md) | Code, tests, and a Draft Product PR; stop for review |
 | `review` | [Review](references/review.md) | Findings and a recommendation on the Product PR; stop after review |
 | `context-promotion` | [Context Promotion](references/context-promotion.md) | Useful memory changes in a PR, or a short no-update result; stop before merge |
-| `delivery` | [Delivery](references/delivery.md) | Run full delivery through merge, useful memory updates, and Issue closure |
+| `delivery` | [Delivery](references/delivery.md) | Complete the Issue task autonomously within the requested scope |
 | `express` | [Express](references/express.md) | Run the small-change path through merge and summary |
 
-For a raw request selected for full delivery, complete planning and spec and continue through delivery. The standalone stopping points apply when the user asks for just that phase. Within `delivery`, continue between phases without requiring another invocation.
+For a raw request selected for full delivery, complete planning and spec and continue through delivery. The standalone stopping points apply when the user asks for just that phase. Within `delivery`, choose the work arrangement freely; the other phase references are optional resources, and their standalone stopping points do not prescribe delivery sequencing.
 
 ## Work with the project
 

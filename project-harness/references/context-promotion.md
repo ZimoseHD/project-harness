@@ -1,8 +1,8 @@
 # Context Promotion
 
-After product integration, capture knowledge that will help future tasks.
+Capture knowledge that will help future tasks. Choose the timing to suit the work.
 
-Read the task, merged product changes, and relevant existing project memory. Consider decisions and their reasons, stable rules, domain knowledge, recurring context, or meaningful milestone evidence. These are prompts for judgment, not required categories or rows.
+Read the task, actual product changes, and relevant existing project memory. Base durable conclusions on established facts. Consider decisions and their reasons, stable rules, domain knowledge, recurring context, or meaningful milestone evidence. These are prompts for judgment, not required categories or rows.
 
 Promote only useful conclusions that are not already adequately recorded or easily learned from the code. Use the project's established memory locations and writing conventions. Avoid task logs, speculative rules, duplication, and unrelated edits.
 
@@ -12,4 +12,4 @@ For useful updates, create or resume a memory branch from the integration branch
 
 Use the user's existing authorization as described in the Skill entrypoint. No proposal artifact, marker, decision packet, separate confirmation round, or terminal record is needed. Apply ordinary user revisions to the same work. If the user has asked to pause or review the changes before merge, honor that instruction.
 
-A standalone `context-promotion` request ends with the memory PR and a summary, before merge. Under `delivery`, continue by merging the memory PR and closing the task. When resuming older work, use [Migration](../MIGRATION.md) to reuse actual changes and preserve historical records.
+A standalone `context-promotion` request ends with the memory PR and a summary, before merge. Within `delivery`, choose the timing, packaging, and integration of memory updates as part of the task. When resuming older work, use [Migration](../MIGRATION.md) to reuse actual changes and preserve historical records.

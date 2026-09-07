@@ -1,6 +1,6 @@
 interface:
   display_name: "Project Harness"
   short_description: "Follow full delivery or express with agent judgment"
-  default_prompt: "Use $project-harness to choose full delivery or express for this task and follow the workflow with agent judgment."
+  default_prompt: "Use $project-harness to choose full delivery or express; for delivery, work autonomously from the Issue using its reviewer and context-promotion reminders."
 policy:
   allow_implicit_invocation: false

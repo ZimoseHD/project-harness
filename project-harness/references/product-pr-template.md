@@ -22,4 +22,4 @@ Describe the actual result for someone who has not seen the conversation. Adapt 
 
 Omit inapplicable sections. Report tests accurately and explain any result that no longer covers the latest changes. Link a CI run or mention a commit when it helps the reader reproduce or interpret a result. No snapshot fields, fixed memory rows, completion checklist, or empty Review section is required.
 
-Use normal Issue references following the closure timing described in [Delivery](delivery.md). Keep a memory PR focused on its knowledge changes and their sources; it does not need this product outline.
+Use normal Issue references and choose closing references to suit the task's completion timing. Keep a memory PR focused on its knowledge changes and their sources; it does not need this product outline.

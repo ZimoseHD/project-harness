@@ -10,7 +10,7 @@ v3 只提供工作流路径和实用写作指引。Agent 自主选择实现方�
 
 ## 工作范式
 
-- 完整路径：plan → spec → implementation → review → 合并 Product PR → 按需 context-promotion 与 Memory PR 合并 → 关闭 Issue。
+- 完整路径：plan → spec → delivery。delivery 自主完成 Issue 任务，具体提醒集中在 `project-harness/references/delivery.md`，不规定内部步骤或顺序。
 - express：说明范围 → 实现与测试 → 轻量 PR → 合并 → 总结。无独立 Issue、review 阶段或记忆写入。
 - init：生命周期外的可选项目偏好设置。
 
