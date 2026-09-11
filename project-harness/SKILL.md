@@ -49,4 +49,13 @@ Carry out the requested delivery, including its normal commits, PRs, merges, Iss
 
 Report what happened, relevant Issue/PR links, test results, and any unfinished work in plain language. Distinguish completed actions from attempted or pending ones. When tools fail or responses are unclear, investigate enough to decide how to continue without duplicating work or claiming an unobserved result.
 
+## Bound effort and finish
+
+Use these reminders across both paths and standalone phases. Apply them in ordinary task instructions, with detail proportional to the work.
+
+- **Keep delegation small.** Give each subagent a bounded question or change: what to examine, what to return, and when to stop. Keep investigation within that scope and return a material gap for the primary agent to resolve instead of silently expanding the assignment.
+- **Watch actual usage.** When using a budget, have the primary agent check host-provided usage counters at useful work boundaries and as the limit approaches; a subagent's estimate is not measured usage. Include coordination cost when available. At the limit, pause ongoing delegated work where the host supports it and decide whether to stop, narrow, take over, or continue within existing authorization before spending more. Make routine allocation decisions without repeatedly asking the user, while respecting explicit hard caps. If counters are unavailable, say so and use observable bounds such as tool calls or elapsed time without presenting them as token counts. Prefer host notifications or occasional checks over repeated polling and requests for status.
+- **Keep handoffs compact.** When changing agents or contexts, pass conclusions, evidence locations, remaining work, and still-relevant user decisions and constraints. Use a fresh context when accumulated history gets in the way; avoid forwarding the whole transcript or replaying the investigation. Read supporting detail only when needed to resolve a specific gap.
+- **Close completed work.** Once the requested outcome, necessary checks, and completion actions for the chosen path or standalone phase are satisfied, have the primary agent integrate existing results and finish. Do not reactivate finished agents merely to repeat or reformat their summaries. Repeat or broaden checks for a concrete change, failure, or unresolved concern; otherwise stop investigating. Report remaining limitations honestly.
+
 See [Migration](MIGRATION.md) when resuming work started with an earlier Harness version.
